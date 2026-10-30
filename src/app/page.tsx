@@ -2,14 +2,20 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import { AuditLog } from "@/components/AuditLog";
+import { DecisionPanel, rulingKey, type Explanation, type Ruling } from "@/components/DecisionPanel";
 import { Inspector } from "@/components/Inspector";
 import { ModelBadges } from "@/components/ModelBadges";
 import { StressPanel } from "@/components/StressPanel";
+import { decideAt, type Decision } from "@/engine/decide";
 import { formatCondition, formatRule } from "@/engine/format";
 import { stateAt } from "@/engine/replay";
 import type { TwinSpec } from "@/engine/schema";
 import type { FixResponse, FixState, StressResponse } from "@/lib/api-types";
 import type { ModelCall } from "@/lib/meta/callLog";
+import { useAudit } from "@/lib/useAudit";
+
+const modelActor = (c?: ModelCall) => (c ? (c.mock ? "model:MOCK" : `model:${c.model}`) : "engine") as `model:${string}` | "engine";
 
 const TwinScene = dynamic(() => import("@/components/twin/TwinScene"), {
   ssr: false,
@@ -30,6 +36,53 @@ export default function Home() {
   const [scenarioIdx, setScenarioIdx] = useState(0);
   const [tickIdx, setTickIdx] = useState(0);
   const [fixes, setFixes] = useState<Record<string, FixState>>({});
+  const [rulings, setRulings] = useState<Record<string, Ruling>>({});
+  const [explanations, setExplanations] = useState<Record<string, Explanation | "loading" | { error: string }>>({});
+  const audit = useAudit();
+
+  const decisions = useMemo<Decision[]>(() => {
+    if (!spec || !stress) return [];
+    const result = stress.results[scenarioIdx];
+    const scenario = stress.scenarios[scenarioIdx];
+    if (!result || !scenario) return [];
+    return decideAt(spec, scenario, result, Math.min(tickIdx, result.ticks.length - 1));
+  }, [spec, stress, scenarioIdx, tickIdx]);
+
+  function rule(d: Decision, r: Ruling, note?: string) {
+    setRulings((x) => ({ ...x, [rulingKey(d)]: r }));
+    void audit.append({
+      actor: r.status === "auto" ? "policy" : "planner",
+      action: `decision.${r.status}`,
+      subject: d.subject,
+      summary:
+        r.status === "overridden"
+          ? `${d.level} → ${r.level}${note ? ` ("${note}")` : ""}`
+          : `${r.level} at t=${d.t}m (confidence ${d.confidence.toFixed(2)}, est. $${d.cost.actionUsd})`,
+      data: {
+        scenario: d.evidence.scenarioId,
+        t: d.t,
+        recommended: d.level,
+        chosen: r.level,
+        confidence: d.confidence,
+        approvalReasons: d.approval.reasons,
+        signals: d.evidence.signals.map((s) => ({ source: s.source, key: s.key, value: s.value, trust: s.trust })),
+        rules: d.evidence.firings.map((f) => f.ruleId),
+        note,
+      },
+    });
+  }
+
+  async function explain(d: Decision) {
+    const k = rulingKey(d);
+    setExplanations((x) => ({ ...x, [k]: "loading" }));
+    try {
+      const r = await post<{ explanation: Explanation; calls: ModelCall[] }>("/api/explain", { decision: d });
+      setExplanations((x) => ({ ...x, [k]: r.explanation }));
+      void audit.append({ actor: modelActor(r.calls[0]), action: "decision.explained", subject: d.subject, summary: r.explanation.headline });
+    } catch (e) {
+      setExplanations((x) => ({ ...x, [k]: { error: e instanceof Error ? e.message : String(e) } }));
+    }
+  }
 
   const live = useMemo(() => {
     if (!spec || !stress) return null;
@@ -54,6 +107,14 @@ export default function Home() {
     try {
       const data = await post<StressResponse>("/api/stress", { spec: target });
       setStress(data);
+      setRulings({});
+      setExplanations({});
+      void audit.append({
+        actor: "engine",
+        action: "stress.run",
+        summary: `${data.scenarios.length} scenarios (seed ${data.seed}, ${data.scenarios.filter((s) => s.origin === "muse-spark").length} from Muse Spark) → ${data.bugs.length} bug(s)`,
+        data: { seed: data.seed, bugs: data.bugs.map((b) => b.key) },
+      });
       // Open on the scenario with the most serious bugs, at its first bug.
       const worst = data.results.reduce(
         (best, r, i) => (r.bugs.filter((b) => b.severity !== "info").length > data.results[best]!.bugs.filter((b) => b.severity !== "info").length ? i : best),
@@ -68,6 +129,12 @@ export default function Home() {
           try {
             const fix = await post<FixResponse>("/api/fix", { spec: target, scenarios: data.scenarios, bugKey: b.key });
             setFixes((f) => ({ ...f, [b.key]: { status: "done", ...fix } }));
+            void audit.append({
+              actor: fix.source === "muse-spark" ? modelActor(fix.calls[0]) : fix.source === "mock" ? "model:MOCK" : "engine",
+              action: "fix.proposed",
+              summary: `${b.kind} → ${fix.diff.ops.map((o) => `${o.op} ${o.rule?.id ?? o.ruleId}`).join(", ")}; engine verdict ${fix.verification.verdict}`,
+              data: { bug: b.key, diff: fix.diff, verdict: fix.verification.verdict },
+            });
           } catch (e) {
             setFixes((f) => ({ ...f, [b.key]: { status: "error", error: e instanceof Error ? e.message : String(e) } }));
           }
@@ -83,6 +150,12 @@ export default function Home() {
   function applyFix(bugKey: string) {
     const fix = fixes[bugKey];
     if (fix?.status !== "done") return;
+    void audit.append({
+      actor: "planner",
+      action: "fix.applied",
+      summary: `${fix.diff.ops.map((o) => `${o.op} ${o.rule?.id ?? o.ruleId}`).join(", ")} (${fix.verification.verdict})`,
+      data: { bug: bugKey, diff: fix.diff },
+    });
     setSpec(fix.patched);
     void runStress(fix.patched);
   }
@@ -102,6 +175,11 @@ export default function Home() {
       setCalls((c) => [...c, ...(json.calls ?? [])]);
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       setSpec(json.spec);
+      void audit.append({
+        actor: modelActor(json.calls?.[0]),
+        action: "twin.built",
+        summary: `${json.spec.objects.length} objects, ${json.spec.rules.length} rules, ${json.spec.invariants.length} safety rules from: "${text.slice(0, 80)}"`,
+      });
       setSelected(json.spec.objects.find((o: { kind: string }) => o.kind === "container")?.id ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -185,6 +263,26 @@ export default function Home() {
             />
           )}
 
+          {stress && (
+            <section className="rounded-lg bg-navy-2 p-4">
+              <h2 className="mb-1 font-medium">
+                Decisions at t={stress.results[scenarioIdx]?.ticks[tickIdx]?.t ?? 0}m{" "}
+                <span className="text-sm text-sand/40">
+                  · gentlest effective action per box, decided by the engine; low-confidence or high-impact actions need your approval
+                </span>
+              </h2>
+              <DecisionPanel
+                decisions={decisions}
+                rulings={rulings}
+                explanations={explanations}
+                onRule={rule}
+                onExplain={explain}
+                onAutoApprove={(ds) => ds.forEach((d) => rule(d, { status: "auto", level: d.level }))}
+                onSelect={setSelected}
+              />
+            </section>
+          )}
+
           <section className="rounded-lg bg-navy-2 p-4">
             <h2 className="mb-2 font-medium">
               Behavior rules <span className="text-sm text-sand/40">({spec.rules.length}) · interpreted by the deterministic engine, never executed as code</span>
@@ -222,6 +320,10 @@ export default function Home() {
           </section>
         </>
       )}
+
+      <section className="rounded-lg bg-navy-2 p-4">
+        <AuditLog log={audit.log} chain={audit.chain} onClear={audit.clear} />
+      </section>
     </main>
   );
 }
