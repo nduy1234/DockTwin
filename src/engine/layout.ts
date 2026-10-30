@@ -87,14 +87,57 @@ export function layoutTwin(spec: TwinSpec): Placed[] {
     place(p.id, "reefer_plug", at, [0.6, 2, 0.6]);
   }
 
-  // Creator-mode objects (door, gripper, ...) sit on a simple bench row.
+  layoutCreator(spec, out, place);
+  return out;
+}
+
+const CREATOR_SIZE: Partial<Record<ObjectKind, [number, number, number]>> = {
+  door: [2.4, 2.4, 0.15],
+  gripper: [0.9, 0.9, 0.9],
+  motor: [0.6, 0.6, 0.6],
+  sensor: [0.3, 0.3, 0.3],
+  button: [0.3, 0.3, 0.15],
+  actor: [0.6, 1.7, 0.6],
+};
+
+/**
+ * Creator mode: hosts (doors, grippers, anything unattached) in a row; their
+ * sensors on top, motors to the right, buttons to the left; actors in front.
+ */
+function layoutCreator(
+  spec: TwinSpec,
+  out: Placed[],
+  place: (id: string, kind: ObjectKind, pos: [number, number, number], size: [number, number, number]) => void,
+) {
   const placed = new Set(out.map((p) => p.id));
   const rest = spec.objects.filter((o) => !placed.has(o.id));
-  rest.forEach((o, i) => {
-    const host = o.attachedTo ? out.find((p) => p.id === o.attachedTo) : undefined;
-    const x = host ? host.pos[0] + 2.5 : (i - (rest.length - 1) / 2) * 5;
-    place(o.id, o.kind, [x, 1, host ? host.pos[2] : 0], [2, 2, 2]);
+  const size = (k: ObjectKind) => CREATOR_SIZE[k] ?? [1, 1, 1];
+  const isChild = (o: (typeof rest)[0]) => o.kind !== "actor" && !!o.attachedTo && rest.some((h) => h.id === o.attachedTo);
+  const hosts = rest.filter((o) => o.kind !== "actor" && !isChild(o));
+  hosts.forEach((h, i) => {
+    const s = size(h.kind);
+    const y = h.kind === "gripper" ? 1.6 : s[1] / 2;
+    place(h.id, h.kind, [(i - (hosts.length - 1) / 2) * 6, y, 0], s);
   });
 
-  return out;
+  const byHost = new Map<string, typeof rest>();
+  for (const o of rest.filter(isChild)) byHost.set(o.attachedTo!, [...(byHost.get(o.attachedTo!) ?? []), o]);
+  for (const [hostId, kids] of byHost) {
+    const host = out.find((p) => p.id === hostId);
+    if (!host) continue;
+    const [hx, hy, hz] = host.pos;
+    const [hw, hh] = host.size;
+    const sensors = kids.filter((k) => k.kind === "sensor");
+    sensors.forEach((k, i) => place(k.id, k.kind, [hx + (i - (sensors.length - 1) / 2) * 0.6, hy + hh / 2 + 0.3, hz - 0.2], size(k.kind)));
+    kids
+      .filter((k) => k.kind !== "sensor")
+      .forEach((k, i) => {
+        const s = size(k.kind);
+        const left = k.kind === "button";
+        place(k.id, k.kind, [hx + (left ? -1 : 1) * (hw / 2 + 0.6 + i * 0.8), s[1] / 2 + 0.4, hz], s);
+      });
+  }
+
+  const actors = rest.filter((o) => o.kind === "actor" || (isChild(o) && !out.some((p) => p.id === o.id)));
+  actors.forEach((a, i) => place(a.id, a.kind, [(i - (actors.length - 1) / 2) * 1.5, size(a.kind)[1] / 2, -3.5], size(a.kind)));
 }

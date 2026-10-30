@@ -40,6 +40,7 @@ export function focusContainers(spec: TwinSpec, limit = 3): string[] {
 }
 
 export function generateScenarios(spec: TwinSpec, seed: number): TaggedScenario[] {
+  if (spec.domain === "creator") return interactionScenarios(spec);
   const r = rng(seed);
   const jitter = (n: number) => Math.round(n * (0.9 + r() * 0.2));
   const boxes = focusContainers(spec);
@@ -232,4 +233,128 @@ function probeValues(p: Predicate): Scalar[] | null {
   if (typeof v === "string") return [`not_${v}`, v];
   if (Array.isArray(v) && v.length) return ["__none__", v[0]!];
   return null;
+}
+
+type Trigger = { target: string; source: SignalSource; key: string; on: Scalar; off: Scalar };
+
+/** The value that makes a predicate true (on) and one that makes it false (off). */
+export function onOff(p: Predicate): { on: Scalar; off: Scalar } | null {
+  const v = p.value;
+  const eps = typeof v === "number" ? Math.max(0.5, Math.abs(v) * 0.05) : 0;
+  const opposite = (x: Scalar): Scalar => (typeof x === "boolean" ? !x : typeof x === "number" ? x + eps : `not_${x}`);
+  switch (p.op) {
+    case "gt":
+    case "gte":
+      return typeof v === "number" ? { on: v + eps, off: v - eps } : null;
+    case "lt":
+    case "lte":
+      return typeof v === "number" ? { on: v - eps, off: v + eps } : null;
+    case "eq":
+      return v === null || Array.isArray(v) ? null : { on: v, off: opposite(v) };
+    case "neq":
+      return v === null || Array.isArray(v) ? null : { on: opposite(v), off: v };
+    case "in":
+      return Array.isArray(v) && v.length ? { on: v[0]!, off: "__none__" } : null;
+    default:
+      return null;
+  }
+}
+
+/** Every external reading the rules/invariants react to, with a triggering and a resting value. */
+export function triggers(spec: TwinSpec): Trigger[] {
+  const out = new Map<string, Trigger>();
+  for (const s of [...spec.rules, ...spec.invariants]) {
+    for (const p of [...s.when.all, ...s.when.any]) {
+      if (!p.fact.startsWith("signal.")) continue;
+      const [, source, ...rest] = p.fact.split(".");
+      if (!SIGNAL_SOURCES.includes(source as SignalSource)) continue;
+      const v = onOff(p);
+      if (!v) continue;
+      const targets =
+        p.of === "self" || p.of === "attached"
+          ? subjectsOf(spec, s.appliesTo)
+              .slice(0, 2)
+              .map((id) => (p.of === "self" ? id : spec.objects.find((o) => o.id === id)?.attachedTo))
+          : [p.of];
+      for (const target of targets) {
+        if (!target) continue;
+        const k = `${target}|${p.fact}`;
+        if (out.has(k)) continue;
+        out.set(k, { target, source: source as SignalSource, key: rest.join("."), ...v });
+      }
+    }
+  }
+  return [...out.values()];
+}
+
+/**
+ * Creator mode: generic interaction stress for any object (doors, grippers,
+ * NPCs). Built only from the readings the twin's own rules react to.
+ */
+export function interactionScenarios(spec: TwinSpec): TaggedScenario[] {
+  const ts = triggers(spec);
+  const out: TaggedScenario[] = [];
+  const sig = (t: number, x: Trigger, value: Scalar): SignalEvent => ({ t, source: x.source, target: x.target, key: x.key, value });
+  const label = (x: Trigger) => `${x.target}.${x.key}`;
+  if (ts.length === 0) {
+    const probe = boundaryProbe(spec);
+    return probe ? [probe] : [];
+  }
+  const power = ts.filter((x) => /power/.test(x.key));
+  const inputs = ts.filter((x) => !power.includes(x));
+
+  out.push({
+    id: "C1",
+    origin: "seeded",
+    name: "Everything at once, then let go one by one",
+    description: `All ${ts.length} inputs trigger together, then release in order (${inputs.map(label).join(" → ")}): finds rules that fight or get stuck.`,
+    durationMin: 20 * (inputs.length + 1),
+    tickMin: TICK,
+    stateChanges: [],
+    signals: [...inputs.map((x) => sig(0, x, x.on)), ...inputs.map((x, i) => sig(20 * (i + 1), x, x.off))],
+  });
+  if (inputs.length > 1) {
+    out.push({
+      id: "C2",
+      origin: "seeded",
+      name: "Let go in reverse order",
+      description: `Same as C1, released backwards (${[...inputs].reverse().map(label).join(" → ")}): e.g. someone stops moving while still in the doorway.`,
+      durationMin: 20 * (inputs.length + 1),
+      tickMin: TICK,
+      stateChanges: [],
+      signals: [...inputs.map((x) => sig(0, x, x.on)), ...[...inputs].reverse().map((x, i) => sig(20 * (i + 1), x, x.off))],
+    });
+  }
+  out.push({
+    id: "C3",
+    origin: "seeded",
+    name: "Flickering sensors",
+    description: "Every input flips on/off each tick, out of phase with each other: noisy hardware, bouncing buttons, frame jitter.",
+    durationMin: 80,
+    tickMin: TICK,
+    stateChanges: [],
+    signals: Array.from({ length: 9 }, (_, k) => inputs.map((x, i) => sig(k * TICK, x, (k + i) % 2 === 0 ? x.on : x.off))).flat(),
+  });
+  const motors = spec.objects.filter((o) => o.kind === "motor").map((o) => o.id);
+  const powerTriggers: Trigger[] = power.length
+    ? power
+    : motors.map((id) => ({ target: id, source: "sensor", key: "power_ok", on: false, off: true }));
+  if (powerTriggers.length) {
+    out.push({
+      id: "C4",
+      origin: "seeded",
+      name: "Power loss mid-motion",
+      description: `Inputs trigger motion at t=0; ${powerTriggers.map(label).join(", ")} drops at t=20 and returns at t=50.`,
+      durationMin: 80,
+      tickMin: TICK,
+      stateChanges: powerTriggers.flatMap((x) => [
+        { t: 20, target: x.target, key: x.key, value: x.on },
+        { t: 50, target: x.target, key: x.key, value: x.off },
+      ]),
+      signals: [...inputs.slice(0, 1).map((x) => sig(0, x, x.on)), ...powerTriggers.flatMap((x) => [sig(20, x, x.on), sig(50, x, x.off)])],
+    });
+  }
+  const probe = boundaryProbe(spec);
+  if (probe) out.push({ ...probe, id: "C5" });
+  return out;
 }

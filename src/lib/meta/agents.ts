@@ -5,11 +5,12 @@ import type { TaggedScenario } from "@/engine/scenarios";
 import { RuleDiff, Scenario, type TwinSpec } from "@/engine/schema";
 import type { Bug } from "@/engine/sim";
 import { applyDiff } from "@/engine/verify";
+import { TEMPLATES } from "@/templates";
 import { sparkJSON } from "./spark";
 
 const ScenarioSet = z.object({ scenarios: z.array(Scenario).min(1).max(3) });
 
-const SCENARIO_SYSTEM = `You are DockTwin's adversarial stress-test agent for port terminal digital twins.
+const SCENARIO_SYSTEM = `You are DockTwin's adversarial stress-test agent for digital twins.
 Given a twin (objects, behavior rules, invariants) and the scenarios already planned, invent 2-3 NEW scenarios most likely to expose behavior bugs: sources that contradict each other, signals that arrive in an awkward order, values sitting exactly on rule thresholds, a fact the rules forget to check, a condition that clears while another is still active.
 
 Scenario format:
@@ -25,7 +26,9 @@ export async function sparkScenarios(spec: TwinSpec, planned: TaggedScenario[]) 
     step: "stress agent: invent scenarios",
     schemaName: "ScenarioSet",
     schema: ScenarioSet,
-    system: SCENARIO_SYSTEM,
+    system: `${SCENARIO_SYSTEM}
+
+${TEMPLATES[spec.domain].agentHints}`,
     user: JSON.stringify({
       twin: { objects: spec.objects, rules: spec.rules, invariants: spec.invariants },
       alreadyPlanned: planned.map((s) => `${s.name}: ${s.description}`),
@@ -50,12 +53,12 @@ export async function sparkScenarios(spec: TwinSpec, planned: TaggedScenario[]) 
   return { scenarios, call };
 }
 
-const FIX_SYSTEM = `You are DockTwin's rule-repair agent. A deterministic simulation found a behavior bug in a port terminal twin's rules. Propose the smallest rule change that fixes it.
+const FIX_SYSTEM = `You are DockTwin's rule-repair agent. A deterministic simulation found a behavior bug in a digital twin's rules. Propose the smallest rule change that fixes it.
 
 Constraints:
 - Edit only rules (ops: add, replace, remove). Never weaken safety: do not delete or loosen rules that recommend hold/inspect/human unless that rule IS the bug.
 - Prefer the gentlest effective action on the ladder: watch, ask, slow, reroute, inspect, hold, human.
-- When two sources disagree, trust physical measurements (scale, reefer_sensor) and authorities (customs) over paperwork (carrier).
+- When sources disagree, trust direct physical measurement over self-reported claims.
 - Keep existing rule ids when replacing; new rules take the next free id (R<n>).
 - "replace" and "add" carry the complete rule. "remove" sets rule to null. "add" sets ruleId to null.
 - The engine will re-run every scenario on your patched twin and reject the fix if the bug persists or a new critical bug appears.`;
@@ -65,7 +68,9 @@ export async function sparkFix(spec: TwinSpec, bug: Bug, scenario: TaggedScenari
     step: `fix agent: ${bug.kind.replace("_", " ")}`,
     schemaName: "RuleDiff",
     schema: RuleDiff,
-    system: FIX_SYSTEM,
+    system: `${FIX_SYSTEM}
+
+${TEMPLATES[spec.domain].agentHints}`,
     user: JSON.stringify({
       bug: { kind: bug.kind, message: bug.message, rules: bug.ruleIds, subject: bug.subject, invariant: bug.invariantId, firstT: bug.firstT },
       rules: spec.rules,

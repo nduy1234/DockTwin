@@ -16,6 +16,7 @@ import type { TwinObject, TwinSpec } from "@/engine/schema";
 import type { FixResponse, FixState, StressResponse } from "@/lib/api-types";
 import type { ModelCall } from "@/lib/meta/callLog";
 import { useAudit } from "@/lib/useAudit";
+import { CREATOR_SAMPLES } from "@/templates/creator";
 
 const modelActor = (c?: ModelCall) => (c ? (c.mock ? "model:MOCK" : `model:${c.model}`) : "engine") as `model:${string}` | "engine";
 
@@ -27,6 +28,7 @@ const TwinScene = dynamic(() => import("@/components/twin/TwinScene"), {
 const SAMPLE = "Reefer box MSCU1234565 at Lane 4, plug at 4°C, customs hold possible.";
 
 export default function Home() {
+  const [domain, setDomain] = useState<"port" | "creator">("port");
   const [text, setText] = useState(SAMPLE);
   const [spec, setSpec] = useState<TwinSpec | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -164,6 +166,18 @@ export default function Home() {
     void runStress(fix.patched);
   }
 
+  function switchDomain(d: "port" | "creator") {
+    if (d === domain) return;
+    setDomain(d);
+    setText(d === "port" ? SAMPLE : CREATOR_SAMPLES[0]!);
+    setSpec(null);
+    setStress(null);
+    setFixes({});
+    setSeed(null);
+    setSelected(null);
+    setError(null);
+  }
+
   async function build() {
     setBusy(true);
     setError(null);
@@ -173,7 +187,7 @@ export default function Home() {
       const res = await fetch("/api/build", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text, ...(seed ? { seed: seed.objects } : {}) }),
+        body: JSON.stringify({ text, domain, ...(seed && domain === "port" ? { seed: seed.objects } : {}) }),
       });
       const json = await res.json();
       setCalls((c) => [...c, ...(json.calls ?? [])]);
@@ -198,13 +212,41 @@ export default function Home() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Dock<span className="text-rust">Twin</span>
         </h1>
-        <p className="text-sm text-sand/60">Describe a terminal → get a programmable, testable digital twin</p>
+        <div role="tablist" aria-label="Mode" className="flex rounded-md bg-navy-2 p-0.5 text-sm">
+          {(
+            [
+              ["port", "Port terminal"],
+              ["creator", "Ordinary Tuesday · creator mode"],
+            ] as const
+          ).map(([d, label]) => (
+            <button
+              key={d}
+              role="tab"
+              aria-selected={domain === d}
+              onClick={() => switchDomain(d)}
+              className={`rounded px-3 py-1 ${domain === d ? "bg-rust text-white" : "text-sand/60 hover:text-sand"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </header>
 
       <section className="space-y-3 rounded-lg bg-navy-2 p-4">
-        <label htmlFor="describe" className="text-sm text-sand/70">
-          Describe the situation
-        </label>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <label htmlFor="describe" className="text-sm text-sand/70">
+            {domain === "port" ? "Describe the situation" : "Describe an interactive object for a game or robot"}
+          </label>
+          {domain === "creator" && (
+            <div className="flex gap-2 text-xs">
+              {CREATOR_SAMPLES.map((s) => (
+                <button key={s} onClick={() => setText(s)} className="rounded px-2 py-0.5 text-sand/60 ring-1 ring-navy-3 hover:text-sand">
+                  {s.split(":")[0]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <textarea
           id="describe"
           value={text}
@@ -237,6 +279,7 @@ export default function Home() {
           )}
           {error && <p className="text-sm text-rust">{error}</p>}
         </div>
+        {domain === "port" && (
         <details className="rounded-md bg-navy/60 p-3" open={showPhoto} onToggle={(e) => setShowPhoto((e.target as HTMLDetailsElement).open)}>
           <summary className="cursor-pointer text-sm text-sand/80">Photo → Twin (SAM 3.1 segments a yard or gate photo)</summary>
           <div className="pt-3">
@@ -254,6 +297,7 @@ export default function Home() {
             />
           </div>
         </details>
+        )}
         <ModelBadges calls={calls} />
       </section>
 
@@ -299,7 +343,7 @@ export default function Home() {
             />
           )}
 
-          {stress && (
+          {stress && spec.domain === "port" && (
             <section className="rounded-lg bg-navy-2 p-4">
               <h2 className="mb-1 font-medium">
                 Decisions at t={stress.results[scenarioIdx]?.ticks[tickIdx]?.t ?? 0}m{" "}
