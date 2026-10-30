@@ -17,6 +17,7 @@ import type { FixResponse, FixState, StressResponse } from "@/lib/api-types";
 import type { ModelCall } from "@/lib/meta/callLog";
 import { useAudit } from "@/lib/useAudit";
 import { CREATOR_SAMPLES } from "@/templates/creator";
+import { DEMO_DESCRIPTION, DEMO_SEED, DEMO_TERMINAL, demoTerminal, PROBLEM_BOX } from "@/engine/demo";
 
 const modelActor = (c?: ModelCall) => (c ? (c.mock ? "model:MOCK" : `model:${c.model}`) : "engine") as `model:${string}` | "engine";
 
@@ -42,6 +43,7 @@ export default function Home() {
   const [scenarioIdx, setScenarioIdx] = useState(0);
   const [tickIdx, setTickIdx] = useState(0);
   const [fixes, setFixes] = useState<Record<string, FixState>>({});
+  const [autoPlay, setAutoPlay] = useState(0);
   const [rulings, setRulings] = useState<Record<string, Ruling>>({});
   const [explanations, setExplanations] = useState<Record<string, Explanation | "loading" | { error: string }>>({});
   const audit = useAudit();
@@ -106,13 +108,15 @@ export default function Home() {
     return json as T;
   }
 
-  async function runStress(target: TwinSpec) {
+  async function runStress(target: TwinSpec): Promise<StressResponse | null> {
     setStressing(true);
     setError(null);
     setFixes({});
+    let result: StressResponse | null = null;
     try {
       const data = await post<StressResponse>("/api/stress", { spec: target });
       setStress(data);
+      result = data;
       setRulings({});
       setExplanations({});
       void audit.append({
@@ -151,6 +155,7 @@ export default function Home() {
     } finally {
       setStressing(false);
     }
+    return result;
   }
 
   function applyFix(bugKey: string) {
@@ -164,6 +169,26 @@ export default function Home() {
     });
     setSpec(fix.patched);
     void runStress(fix.patched);
+  }
+
+  /** One click: seeded 100-box terminal, live stress test (Muse Spark agents), replay of the perfect storm. */
+  async function loadDemo() {
+    switchDomain("port");
+    setText(DEMO_DESCRIPTION);
+    setSeed(null);
+    const d = demoTerminal();
+    setSpec(d);
+    setSelected(PROBLEM_BOX);
+    void audit.append({
+      actor: "engine",
+      action: "demo.loaded",
+      subject: PROBLEM_BOX,
+      summary: `${DEMO_TERMINAL} (fictional), seed ${DEMO_SEED}: ${d.objects.filter((o) => o.kind === "container").length} boxes, problem box ${PROBLEM_BOX}`,
+    });
+    const data = await runStress(d);
+    const storm = data?.scenarios.findIndex((s) => s.id === "S5") ?? -1;
+    if (storm >= 0) setScenarioIdx(storm);
+    setAutoPlay((n) => n + 1);
   }
 
   function switchDomain(d: "port" | "creator") {
@@ -212,6 +237,15 @@ export default function Home() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Dock<span className="text-rust">Twin</span>
         </h1>
+        <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={loadDemo}
+          disabled={stressing || busy}
+          className="rounded-md border border-rust px-3 py-1 text-sm text-rust hover:bg-rust hover:text-white disabled:opacity-50"
+          title="Load a seeded 100-box terminal, stress-test it, and replay the perfect storm"
+        >
+          ▶ Demo mode
+        </button>
         <div role="tablist" aria-label="Mode" className="flex rounded-md bg-navy-2 p-0.5 text-sm">
           {(
             [
@@ -229,6 +263,7 @@ export default function Home() {
               {label}
             </button>
           ))}
+        </div>
         </div>
       </header>
 
@@ -340,6 +375,7 @@ export default function Home() {
               }}
               onTick={setTickIdx}
               onApply={applyFix}
+              autoPlay={autoPlay}
             />
           )}
 

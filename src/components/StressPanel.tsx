@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { FixState, StressResponse } from "@/lib/api-types";
 import { LEVEL_COLOR } from "./twin/colors";
 
@@ -15,13 +16,37 @@ type Props = {
   fixes: Record<string, FixState>;
   onScenario: (i: number) => void;
   onTick: (i: number) => void;
+  /** Bump to start the replay from the beginning (demo mode). */
+  autoPlay?: number;
   onApply: (bugKey: string) => void;
 };
 
-export function StressPanel({ data, scenarioIdx, tickIdx, fixes, onScenario, onTick, onApply }: Props) {
+const REPLAY_MS = 700;
+
+export function StressPanel({ data, scenarioIdx, tickIdx, fixes, onScenario, onTick, onApply, autoPlay = 0 }: Props) {
   const result = data.results[scenarioIdx]!;
   const scenario = data.scenarios[scenarioIdx]!;
   const tick = result.ticks[tickIdx];
+  const [playing, setPlaying] = useState(false);
+  const at = useRef(tickIdx);
+  at.current = tickIdx;
+
+  useEffect(() => {
+    if (autoPlay > 0) {
+      onTick(0);
+      setPlaying(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay]);
+
+  useEffect(() => {
+    if (!playing) return;
+    const id = setInterval(() => {
+      if (at.current >= result.ticks.length - 1) setPlaying(false);
+      else onTick(at.current + 1);
+    }, REPLAY_MS);
+    return () => clearInterval(id);
+  }, [playing, result.ticks.length, onTick]);
   const serious = (i: number) => data.results[i]!.bugs.filter((b) => b.severity !== "info").length;
 
   return (
@@ -58,6 +83,16 @@ export function StressPanel({ data, scenarioIdx, tickIdx, fixes, onScenario, onT
         <div className="space-y-1 border-t border-navy-3 pt-2">
           <p className="text-xs text-sand/60">{scenario.description}</p>
           <label className="flex items-center gap-2 text-xs text-sand/70">
+            <button
+              onClick={() => {
+                if (!playing && tickIdx >= result.ticks.length - 1) onTick(0);
+                setPlaying((p) => !p);
+              }}
+              aria-label={playing ? "Pause replay" : "Play replay"}
+              className="rounded px-2 py-0.5 ring-1 ring-navy-3 hover:bg-navy"
+            >
+              {playing ? "❚❚" : "▶"}
+            </button>
             <span className="w-14 font-mono">t={tick?.t ?? 0}m</span>
             <input
               type="range"

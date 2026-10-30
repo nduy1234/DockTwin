@@ -1,0 +1,102 @@
+{
+  "objects": 122,
+  "scenarios": [
+    "S1 Paper says empty, scale says heavy",
+    "S2 Customs hold lands during a lane outage",
+    "S3 Reefer creeping warm while carrier says OK",
+    "S4 Half the lanes down, clock on charges running",
+    "S5 Perfect storm",
+    "S6 Boundary probe"
+  ],
+  "bugs": [
+    {
+      "key": "conflict:R4,R5:MSCU7154023:gate_route",
+      "scenario": "S1",
+      "firstT": 10,
+      "count": 12
+    },
+    {
+      "key": "inv:INV2:MSCU7154023",
+      "scenario": "S3",
+      "firstT": 40,
+      "count": 9
+    },
+    {
+      "key": "conflict:R4,R5:TGHU0254611:gate_route",
+      "scenario": "S6",
+      "firstT": 250,
+      "count": 2
+    }
+  ],
+  "fixes": [
+    {
+      "bug": "conflict:R4,R5:MSCU7154023:gate_route",
+      "verdict": "verified",
+      "resolved": 2,
+      "introduced": []
+    },
+    {
+      "bug": "inv:INV2:MSCU7154023",
+      "verdict": "verified",
+      "resolved": 1,
+      "introduced": []
+    },
+    {
+      "bug": "conflict:R4,R5:TGHU0254611:gate_route",
+      "verdict": "verified",
+      "resolved": 2,
+      "introduced": []
+    }
+  ],
+  "problemBoxPeaks": {
+    "S1": "inspect",
+    "S2": "hold",
+    "S3": null,
+    "S4": "ask",
+    "S5": "hold",
+    "S6": "hold"
+  },
+  "decisions": {
+    "S1@20": {
+      "level": "inspect",
+      "ruleLevel": "inspect",
+      "floor": null,
+      "confidence": 0.83,
+      "approval": [],
+      "costUsd": 436
+    },
+    "S2@30": {
+      "level": "hold",
+      "ruleLevel": "hold",
+      "floor": "INV1",
+      "confidence": 0.95,
+      "approval": [
+        "hold is a high-impact action",
+        "estimated cost $1,664 ≥ $1,500"
+      ],
+      "costUsd": 1664
+    },
+    "S3@60": {
+      "level": "inspect",
+      "ruleLevel": null,
+      "floor": "INV2",
+      "confidence": 0.72,
+      "approval": [
+        "estimated cost $2,476 ≥ $1,500",
+        "rules under-reacted; raised to safety floor (INV2)"
+      ],
+      "costUsd": 2476
+    },
+    "S5@30": {
+      "level": "hold",
+      "ruleLevel": "hold",
+      "floor": "INV1",
+      "confidence": 0.85,
+      "approval": [
+        "hold is a high-impact action",
+        "estimated cost $9,824 ≥ $1,500"
+      ],
+      "costUsd": 9824
+    }
+  }
+}
