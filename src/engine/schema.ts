@@ -184,3 +184,33 @@ export function checkTwin(spec: TwinSpec): string[] {
   }
   return issues;
 }
+
+/** A claim from an external source. May be wrong; the trust layer weighs it. */
+export const SignalEvent = z.object({
+  t: z.number().int().min(0).describe("minutes from scenario start"),
+  source: SignalSource,
+  target: z.string().min(1).describe("object id the claim is about"),
+  key: z.string().min(1),
+  value: Scalar,
+});
+export type SignalEvent = z.infer<typeof SignalEvent>;
+
+/** Ground truth physical change (a lane really goes down, a temp really rises). */
+export const StateChange = z.object({
+  t: z.number().int().min(0),
+  target: z.string().min(1),
+  key: z.string().min(1),
+  value: Scalar,
+});
+export type StateChange = z.infer<typeof StateChange>;
+
+export const Scenario = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  description: z.string(),
+  durationMin: z.number().int().min(1).max(24 * 60),
+  tickMin: z.number().int().min(1).max(120),
+  stateChanges: z.array(StateChange),
+  signals: z.array(SignalEvent),
+});
+export type Scenario = z.infer<typeof Scenario>;

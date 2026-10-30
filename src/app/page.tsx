@@ -1,16 +1,24 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
+import { Inspector } from "@/components/Inspector";
 import { ModelBadges } from "@/components/ModelBadges";
 import { formatCondition, formatRule } from "@/engine/format";
 import type { TwinSpec } from "@/engine/schema";
 import type { ModelCall } from "@/lib/meta/callLog";
+
+const TwinScene = dynamic(() => import("@/components/twin/TwinScene"), {
+  ssr: false,
+  loading: () => <div className="grid h-full place-items-center text-sm text-sand/40">Loading 3D twin…</div>,
+});
 
 const SAMPLE = "Reefer box MSCU1234565 at Lane 4, plug at 4°C, customs hold possible.";
 
 export default function Home() {
   const [text, setText] = useState(SAMPLE);
   const [spec, setSpec] = useState<TwinSpec | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const [calls, setCalls] = useState<ModelCall[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -28,6 +36,7 @@ export default function Home() {
       setCalls((c) => [...c, ...(json.calls ?? [])]);
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       setSpec(json.spec);
+      setSelected(json.spec.objects.find((o: { kind: string }) => o.kind === "container")?.id ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -36,15 +45,15 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
-      <header className="flex items-baseline justify-between gap-4">
+    <main className="mx-auto max-w-7xl space-y-4 px-4 py-6">
+      <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">
           Dock<span className="text-rust">Twin</span>
         </h1>
         <p className="text-sm text-sand/60">Describe a terminal → get a programmable, testable digital twin</p>
       </header>
 
-      <section className="rounded-lg bg-navy-2 p-4 space-y-3">
+      <section className="space-y-3 rounded-lg bg-navy-2 p-4">
         <label htmlFor="describe" className="text-sm text-sand/70">
           Describe the situation
         </label>
@@ -52,10 +61,10 @@ export default function Home() {
           id="describe"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={3}
+          rows={2}
           className="w-full rounded-md bg-navy p-3 font-mono text-sm outline-none ring-1 ring-navy-3 focus:ring-rust"
         />
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={build}
             disabled={busy || text.trim().length < 3}
@@ -69,65 +78,56 @@ export default function Home() {
       </section>
 
       {spec && (
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-lg bg-navy-2 p-4">
-            <h2 className="font-medium">{spec.name}</h2>
-            <p className="mb-3 text-sm text-sand/60">{spec.summary}</p>
-            <ul className="space-y-2">
-              {spec.objects.map((o) => (
-                <li key={o.id} className="rounded-md bg-navy p-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="font-mono">{o.id}</span>
-                    <span className="text-sand/50">
-                      {o.kind}
-                      {o.attachedTo && ` → ${o.attachedTo}`}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-1 font-mono text-[11px] text-sand/70">
-                    {o.props.map((p) => (
-                      <span key={p.key} className="rounded bg-navy-3 px-1.5">
-                        {p.key}={String(p.value)}
-                      </span>
+        <>
+          <section className="grid gap-4 lg:grid-cols-3">
+            <div className="relative h-[460px] overflow-hidden rounded-lg bg-navy-2 lg:col-span-2" data-testid="twin-canvas">
+              <div className="pointer-events-none absolute left-3 top-2 z-10">
+                <div className="font-medium">{spec.name}</div>
+                <div className="text-xs text-sand/60">{spec.summary}</div>
+              </div>
+              <TwinScene spec={spec} selected={selected} onSelect={setSelected} />
+            </div>
+            <aside className="max-h-[460px] overflow-y-auto rounded-lg bg-navy-2 p-4">
+              <Inspector spec={spec} id={selected} />
+            </aside>
+          </section>
+
+          <section className="rounded-lg bg-navy-2 p-4">
+            <h2 className="mb-2 font-medium">
+              Behavior rules <span className="text-sm text-sand/40">({spec.rules.length}) · interpreted by the deterministic engine, never executed as code</span>
+            </h2>
+            <div className="grid gap-2 md:grid-cols-2">
+              {spec.rules.map((r) => {
+                const f = formatRule(r);
+                return (
+                  <div key={r.id} className="rounded-md bg-navy p-2 font-mono text-xs">
+                    <div className="mb-1 font-sans text-sm">
+                      <span className="text-rust">{r.id}</span> {r.name} <span className="text-sand/40">p{r.priority}</span>
+                    </div>
+                    <div>
+                      <span className="text-sand/50">WHEN </span>
+                      {f.when}
+                    </div>
+                    {f.then.map((t, i) => (
+                      <div key={i}>
+                        <span className="text-sand/50">THEN </span>
+                        {t}
+                      </div>
                     ))}
                   </div>
-                </li>
+                );
+              })}
+              {spec.invariants.map((inv) => (
+                <div key={inv.id} className="rounded-md bg-navy p-2 text-xs">
+                  <span className="text-warn">{inv.id}</span> {inv.description}
+                  <div className="font-mono text-sand/60">
+                    {formatCondition(inv.when)} ⇒ ≥ {inv.minLevel}
+                  </div>
+                </div>
               ))}
-            </ul>
-          </div>
-          <div className="rounded-lg bg-navy-2 p-4 space-y-2">
-            <h2 className="font-medium">Behavior rules</h2>
-            {spec.rules.map((r) => {
-              const f = formatRule(r);
-              return (
-                <div key={r.id} className="rounded-md bg-navy p-2 font-mono text-xs">
-                  <div className="mb-1 font-sans text-sm">
-                    <span className="text-rust">{r.id}</span> {r.name}{" "}
-                    <span className="text-sand/40">p{r.priority}</span>
-                  </div>
-                  <div>
-                    <span className="text-sand/50">WHEN </span>
-                    {f.when}
-                  </div>
-                  {f.then.map((t, i) => (
-                    <div key={i}>
-                      <span className="text-sand/50">THEN </span>
-                      {t}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-            <h2 className="pt-2 font-medium">Invariants</h2>
-            {spec.invariants.map((inv) => (
-              <div key={inv.id} className="rounded-md bg-navy p-2 text-xs">
-                <span className="text-warn">{inv.id}</span> {inv.description}
-                <div className="font-mono text-sand/60">
-                  {formatCondition(inv.when)} ⇒ ≥ {inv.minLevel}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+            </div>
+          </section>
+        </>
       )}
     </main>
   );
