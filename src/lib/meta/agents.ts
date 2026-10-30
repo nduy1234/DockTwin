@@ -85,3 +85,33 @@ export async function sparkFix(spec: TwinSpec, bug: Bug, scenario: TaggedScenari
     reasoningEffort: "medium",
   });
 }
+
+const BoxLabels = z.object({
+  labels: z.array(
+    z.object({
+      segment: z.string().describe("the segment id exactly as given"),
+      code: z.string().nullable().describe("ISO 6346 container number if legible, e.g. MSCU1234565, else null"),
+      reefer: z.boolean().nullable().describe("true if a refrigeration unit is visible, null if unsure"),
+      color: z.string().nullable(),
+    }),
+  ),
+});
+
+/** Muse Spark vision: read what SAM's boxes contain (codes, reefer units, color). */
+export async function sparkLabelBoxes(imageDataUrl: string, boxes: { id: string; box: { left: number; top: number; right: number; bottom: number } }[]) {
+  const ids = new Set(boxes.map((b) => b.id));
+  return sparkJSON({
+    step: "vision: read boxes",
+    schemaName: "BoxLabels",
+    schema: BoxLabels,
+    system:
+      "You read shipping containers in a terminal photo. For each numbered pixel box (left,top,right,bottom) report the container number only if you can actually read it, whether a reefer unit is visible, and the dominant color. Never guess a code; use null.",
+    user: [
+      { type: "image_url", image_url: { url: imageDataUrl } },
+      { type: "text", text: JSON.stringify(boxes.map((b) => ({ segment: b.id, box: [b.box.left, b.box.top, b.box.right, b.box.bottom].map(Math.round) }))) },
+    ],
+    check: ({ labels }) => labels.filter((l) => !ids.has(l.segment)).map((l) => `unknown segment "${l.segment}"`),
+    mock: () => ({ labels: boxes.map((b, i) => ({ segment: b.id, code: i === 0 ? "MSCU1234565" : null, reefer: i === 0, color: null })) }),
+    reasoningEffort: "low",
+  });
+}

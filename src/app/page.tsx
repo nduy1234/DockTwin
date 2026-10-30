@@ -5,12 +5,14 @@ import { useMemo, useState } from "react";
 import { AuditLog } from "@/components/AuditLog";
 import { DecisionPanel, rulingKey, type Explanation, type Ruling } from "@/components/DecisionPanel";
 import { Inspector } from "@/components/Inspector";
+import { MicButton } from "@/components/MicButton";
 import { ModelBadges } from "@/components/ModelBadges";
+import { PhotoPanel } from "@/components/PhotoPanel";
 import { StressPanel } from "@/components/StressPanel";
 import { decideAt, type Decision } from "@/engine/decide";
 import { formatCondition, formatRule } from "@/engine/format";
 import { stateAt } from "@/engine/replay";
-import type { TwinSpec } from "@/engine/schema";
+import type { TwinObject, TwinSpec } from "@/engine/schema";
 import type { FixResponse, FixState, StressResponse } from "@/lib/api-types";
 import type { ModelCall } from "@/lib/meta/callLog";
 import { useAudit } from "@/lib/useAudit";
@@ -31,6 +33,8 @@ export default function Home() {
   const [calls, setCalls] = useState<ModelCall[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [seed, setSeed] = useState<{ objects: TwinObject[]; source: string } | null>(null);
+  const [showPhoto, setShowPhoto] = useState(false);
   const [stress, setStress] = useState<StressResponse | null>(null);
   const [stressing, setStressing] = useState(false);
   const [scenarioIdx, setScenarioIdx] = useState(0);
@@ -169,7 +173,7 @@ export default function Home() {
       const res = await fetch("/api/build", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, ...(seed ? { seed: seed.objects } : {}) }),
       });
       const json = await res.json();
       setCalls((c) => [...c, ...(json.calls ?? [])]);
@@ -216,8 +220,40 @@ export default function Home() {
           >
             {busy ? "Building twin…" : "Build twin"}
           </button>
+          <MicButton
+            onText={(t, c) => {
+              setText(t);
+              void audit.append({ actor: modelActor(c[0]), action: "voice.transcribed", summary: `"${t.slice(0, 100)}"` });
+            }}
+            onCalls={(c) => setCalls((x) => [...x, ...c])}
+          />
+          {seed && (
+            <span className="inline-flex items-center gap-2 rounded-md bg-navy px-2 py-1 text-xs">
+              📷 {seed.objects.length} objects from “{seed.source}” will be included
+              <button onClick={() => setSeed(null)} className="text-sand/50 hover:text-rust" aria-label="Remove photo objects">
+                ✕
+              </button>
+            </span>
+          )}
           {error && <p className="text-sm text-rust">{error}</p>}
         </div>
+        <details className="rounded-md bg-navy/60 p-3" open={showPhoto} onToggle={(e) => setShowPhoto((e.target as HTMLDetailsElement).open)}>
+          <summary className="cursor-pointer text-sm text-sand/80">Photo → Twin (SAM 3.1 segments a yard or gate photo)</summary>
+          <div className="pt-3">
+            <PhotoPanel
+              onCalls={(c) => setCalls((x) => [...x, ...c])}
+              onSeed={(objects, source, c) => {
+                setSeed({ objects, source });
+                void audit.append({
+                  actor: modelActor(c.find((x) => x.model === "sam-3.1")),
+                  action: "photo.segmented",
+                  summary: `${objects.length} objects seeded from "${source}"`,
+                  data: { ids: objects.map((o) => o.id) },
+                });
+              }}
+            />
+          </div>
+        </details>
         <ModelBadges calls={calls} />
       </section>
 
