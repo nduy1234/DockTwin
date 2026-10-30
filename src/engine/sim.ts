@@ -21,6 +21,8 @@ export type Bug = {
   invariantId?: string;
   firstT?: number;
   count: number;
+  /** Stable identity (kind + rules + subject), used to check a fix removed it. */
+  key: string;
 };
 
 export type Recommendation = { ruleId: string; level: LadderLevel; reason: string };
@@ -66,10 +68,10 @@ export function runScenario(spec: TwinSpec, scenario: Scenario): SimResult {
   const ticks: TickRecord[] = [];
   const outcomes: Record<string, SubjectOutcome> = {};
 
-  const addBug = (key: string, bug: Omit<Bug, "count">) => {
+  const addBug = (key: string, bug: Omit<Bug, "count" | "key">) => {
     const prev = bugs.get(key);
     if (prev) prev.count++;
-    else bugs.set(key, { ...bug, count: 1 });
+    else bugs.set(key, { ...bug, count: 1, key });
   };
 
   const changes = [...scenario.stateChanges].sort((a, b) => a.t - b.t);
@@ -239,11 +241,11 @@ function emptyOutcome(subject: string): SubjectOutcome {
 }
 
 /** State facts no object ever has and no rule ever sets: almost always a typo. */
-function unknownFacts(spec: TwinSpec, finalState: State): Omit<Bug, "count">[] {
+function unknownFacts(spec: TwinSpec, finalState: State): Omit<Bug, "count" | "key">[] {
   const known = new Set<string>();
   for (const props of Object.values(finalState)) for (const k of Object.keys(props)) known.add(k);
   for (const r of spec.rules) for (const a of r.then) if (a.type === "set") known.add(a.key);
-  const out: Omit<Bug, "count">[] = [];
+  const out: Omit<Bug, "count" | "key">[] = [];
   for (const r of spec.rules) {
     for (const p of [...r.when.all, ...r.when.any]) {
       if (p.fact === "clock.minutes" || p.fact.startsWith("signal.")) continue;

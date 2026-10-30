@@ -214,3 +214,20 @@ export const Scenario = z.object({
   signals: z.array(SignalEvent),
 });
 export type Scenario = z.infer<typeof Scenario>;
+
+/**
+ * A proposed fix, as edits to the rule set. Flat op shape (not a union) keeps
+ * the JSON Schema shallow for constrained decoding.
+ */
+export const RuleOp = z.object({
+  op: z.enum(["add", "replace", "remove"]),
+  ruleId: z.string().nullable().describe("rule to replace/remove; null for add"),
+  rule: Rule.nullable().describe("full new rule for add/replace; null for remove"),
+});
+export type RuleOp = z.infer<typeof RuleOp>;
+
+export const RuleDiff = z.object({
+  rationale: z.string().describe("one or two sentences a terminal planner would accept"),
+  ops: z.array(RuleOp).min(1).max(4),
+});
+export type RuleDiff = z.infer<typeof RuleDiff>;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { checkTwin, jsonSchemaFor, TwinSpec } from "@/engine/schema";
+import { z } from "zod";
+import { checkTwin, jsonSchemaFor, RuleDiff, Scenario, TwinSpec } from "@/engine/schema";
 import { mockPortTwin } from "@/templates/port";
 
 const sample = () => mockPortTwin("Reefer box MSCU1234565 at Lane 4, plug at 4°C, customs hold possible.");
@@ -48,8 +49,12 @@ describe("TwinSpec", () => {
     expect(TwinSpec.safeParse(spec).success).toBe(false);
   });
 
-  it("JSON Schema fits Meta structured-output limits", () => {
-    const js = jsonSchemaFor(TwinSpec);
+  it.each([
+    ["TwinSpec", TwinSpec],
+    ["RuleDiff", RuleDiff],
+    ["ScenarioSet", z.object({ scenarios: z.array(Scenario) })],
+  ] as const)("%s JSON Schema fits Meta structured-output limits", (_, schema) => {
+    const js = jsonSchemaFor(schema);
     const text = JSON.stringify(js);
     expect(text).not.toContain('"$ref"'); // recursive schemas are rejected (HTTP 400)
     expect(js).not.toHaveProperty("$schema");

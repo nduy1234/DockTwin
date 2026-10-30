@@ -70,17 +70,17 @@ export function mockPortTwin(text: string): TwinSpec {
     rules: [
       {
         id: "R1",
-        name: "Reefer temp drift",
+        name: "Reefer temp complaint",
         appliesTo: { kind: "container", ids: [] },
         priority: 5,
         when: {
           all: [
             { of: "self", fact: "reefer", op: "eq", value: true },
-            { of: "self", fact: "signal.reefer_sensor.temp_c", op: "gt", value: setpoint + 2 },
+            { of: "self", fact: "signal.carrier.temp_ok", op: "eq", value: false },
           ],
           any: [],
         },
-        then: [{ type: "recommend", level: "inspect", reason: "Reefer temperature above setpoint +2°C" }],
+        then: [{ type: "recommend", level: "inspect", reason: "Carrier reports reefer temperature problem" }],
       },
       {
         id: "R2",
@@ -101,6 +101,28 @@ export function mockPortTwin(text: string): TwinSpec {
         when: { all: [{ of: "attached", fact: "status", op: "eq", value: "down" }], any: [] },
         then: [{ type: "recommend", level: "reroute", reason: "Assigned gate lane is down" }],
       },
+      {
+        id: "R4",
+        name: "Declared empty: fast lane",
+        appliesTo: { kind: "container", ids: [] },
+        priority: 5,
+        when: { all: [{ of: "self", fact: "signal.carrier.declared_status", op: "eq", value: "empty" }], any: [] },
+        then: [
+          { type: "set", key: "gate_route", value: "fast_lane" },
+          { type: "recommend", level: "watch", reason: "Carrier declares box empty" },
+        ],
+      },
+      {
+        id: "R5",
+        name: "Heavy on scale: inspection lane",
+        appliesTo: { kind: "container", ids: [] },
+        priority: 5,
+        when: { all: [{ of: "self", fact: "signal.scale.weight_kg", op: "gt", value: 10000 }], any: [] },
+        then: [
+          { type: "set", key: "gate_route", value: "inspection_lane" },
+          { type: "recommend", level: "inspect", reason: "Scale weight above 10 t" },
+        ],
+      },
     ],
     invariants: [
       {
@@ -109,6 +131,19 @@ export function mockPortTwin(text: string): TwinSpec {
         appliesTo: { kind: "container", ids: [] },
         when: { all: [{ of: "self", fact: "signal.customs.hold", op: "eq", value: true }], any: [] },
         minLevel: "hold",
+      },
+      {
+        id: "INV2",
+        description: "A reefer more than 3°C above setpoint must reach at least inspect",
+        appliesTo: { kind: "container", ids: [] },
+        when: {
+          all: [
+            { of: "self", fact: "reefer", op: "eq", value: true },
+            { of: "self", fact: "signal.reefer_sensor.temp_c", op: "gt", value: setpoint + 3 },
+          ],
+          any: [],
+        },
+        minLevel: "inspect",
       },
     ],
   };
