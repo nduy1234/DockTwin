@@ -16,12 +16,13 @@ export type Segment = {
 export const PHOTO_CONCEPTS = {
   "shipping container": "container",
   crane: "crane",
-  "road lane": "gate_lane",
+  road: "gate_lane",
 } as const;
 export type PhotoConcept = keyof typeof PHOTO_CONCEPTS;
 
 const MAX_CONTAINERS = 40;
 const MIN_AREA_FRACTION = 0.0004;
+const MAX_TIER = 5;
 
 const area = (b: Box) => Math.max(0, b.right - b.left) * Math.max(0, b.bottom - b.top);
 const cx = (b: Box) => (b.left + b.right) / 2;
@@ -54,10 +55,25 @@ export function segmentsToTwin(segments: Segment[], width: number, height: numbe
     out.push({ id, kind: "crane", label: "Crane seen in photo", props: [{ key: "status", value: "up" }, { key: "photo_box", value: px(s.box) }], attachedTo: null });
   }
 
+  // Tier = length of the chain of boxes directly beneath (same column, touching),
+  // so distant rows in an aerial shot don't count as one tall stack.
+  const below = (s: Segment) =>
+    boxes.find((o) => {
+      const h = s.box.bottom - s.box.top;
+      return o !== s && xOverlap(o.box, s.box) > 0.5 && cy(o.box) > cy(s.box) && Math.abs(o.box.top - s.box.bottom) <= h * 0.35;
+    });
+  const tiers = new Map<Segment, number>();
+  const tierOf = (s: Segment, depth = 0): number => {
+    if (tiers.has(s)) return tiers.get(s)!;
+    const b = depth < MAX_TIER ? below(s) : undefined;
+    const t = b ? Math.min(MAX_TIER, tierOf(b, depth + 1) + 1) : 0;
+    tiers.set(s, t);
+    return t;
+  };
+
   const used = new Set(out.map((o) => o.id));
   boxes.forEach((s, i) => {
-    // Tier = how many boxes in the same column sit lower in the image.
-    const tier = boxes.filter((o) => o !== s && xOverlap(o.box, s.box) > 0.5 && cy(o.box) > cy(s.box)).length;
+    const tier = tierOf(s);
     const lane = lanes.find((l) => cx(s.box) >= l.s.box.left && cx(s.box) <= l.s.box.right && cy(s.box) >= l.s.box.top && cy(s.box) <= l.s.box.bottom);
     const label = labels[s.objectId] ?? {};
     const code = label.code && /^[A-Z]{4}\d{7}$/.test(label.code) && !used.has(label.code) ? label.code : null;

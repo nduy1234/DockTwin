@@ -142,3 +142,27 @@ describe("layoutTwin", () => {
     for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(overlap(boxes[i]!, boxes[j]!)).toBe(false);
   });
 });
+
+describe("scenario expectations (stress-agent oracles)", () => {
+  const spec = reeferTwin([
+    rule({ id: "R1", when: { all: [hot], any: [] }, then: [{ type: "recommend", level: "ask", reason: "warm" }] }),
+  ]);
+  const signals = [{ t: 20, source: "reefer_sensor" as const, target: "BOX1", key: "temp_c", value: 9 }];
+
+  it("reports an unmet expectation with the rules that did fire", () => {
+    const res = runScenario(spec, scenario({ signals, expectations: [{ subject: "BOX1", minLevel: "inspect", byT: 30, why: "warm reefer" }] }));
+    expect(res.bugs.find((b) => b.kind === "expectation_unmet")).toMatchObject({
+      key: "expect:S1:BOX1:inspect",
+      severity: "warn",
+      ruleIds: ["R1"],
+      firstT: 30,
+    });
+  });
+
+  it("passes when the rules reach the level in time, and ignores ticks after byT", () => {
+    const met = runScenario(spec, scenario({ signals, expectations: [{ subject: "BOX1", minLevel: "ask", byT: 30, why: "" }] }));
+    expect(met.bugs.some((b) => b.kind === "expectation_unmet")).toBe(false);
+    const tooEarly = runScenario(spec, scenario({ signals, expectations: [{ subject: "BOX1", minLevel: "ask", byT: 10, why: "" }] }));
+    expect(tooEarly.bugs.some((b) => b.kind === "expectation_unmet")).toBe(true);
+  });
+});

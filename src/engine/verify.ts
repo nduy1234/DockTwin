@@ -117,10 +117,29 @@ function dedupe(bugs: Bug[]): Bug[] {
   return [...m.values()];
 }
 
-/** Unique serious bugs across scenarios, most severe and earliest first. */
-export function topBugs(results: SimResult[], limit = 4): (Bug & { scenarioId: string })[] {
-  const m = new Map<string, Bug & { scenarioId: string }>();
-  for (const r of results) for (const b of r.bugs) if (serious(b) && !m.has(b.key)) m.set(b.key, { ...b, scenarioId: r.scenarioId });
+export type RankedBug = Bug & { scenarioId: string; alsoAffects: string[] };
+
+/** Same defect on different boxes = one root cause (one fix covers all). */
+export function rootCause(b: Bug): string {
+  return b.kind === "expectation_unmet" ? b.key : `${b.kind}:${b.ruleIds.join(",")}:${b.invariantId ?? ""}`;
+}
+
+/**
+ * Unique serious bugs across scenarios, grouped by root cause, most severe
+ * first. Each keeps its first occurrence as the bug to fix; alsoAffects lists
+ * the other subjects showing the same defect.
+ */
+export function topBugs(results: SimResult[], limit = 4): RankedBug[] {
+  const m = new Map<string, RankedBug>();
+  for (const r of results) {
+    for (const b of r.bugs) {
+      if (!serious(b)) continue;
+      const root = rootCause(b);
+      const seen = m.get(root);
+      if (!seen) m.set(root, { ...b, scenarioId: r.scenarioId, alsoAffects: [] });
+      else if (b.subject && b.subject !== seen.subject && !seen.alsoAffects.includes(b.subject)) seen.alsoAffects.push(b.subject);
+    }
+  }
   const rank = { critical: 2, warn: 1, info: 0 } as const;
-  return [...m.values()].sort((a, b) => rank[b.severity] - rank[a.severity]).slice(0, limit);
+  return [...m.values()].sort((x, y) => rank[y.severity] - rank[x.severity]).slice(0, limit);
 }

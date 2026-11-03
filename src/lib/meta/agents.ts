@@ -18,7 +18,8 @@ Scenario format:
 - signals: claims from external sources that may be wrong, {t, source, target, key, value}. Sources: carrier, scale, customs, reefer_sensor, gate_ops, billing, sensor, user.
 - t in minutes, multiples of tickMin, never beyond durationMin. Use durationMin 120 and tickMin 10.
 - Only target object ids that exist in the twin. Use the signal keys the rules actually read (look at "signal.<source>.<key>" facts) so the scenario exercises them.
-- ids "A1", "A2", "A3". The description says in one sentence what conflict is being tested and which rule you expect to misbehave.`;
+- ids "A1", "A2", "A3". The description says in one sentence what conflict is being tested and which rule you expect to misbehave.
+- expectations: 1-2 per scenario. Each is a test oracle the engine will check: {subject, minLevel, byT, why} means "by minute byT, the rules must have driven subject to at least minLevel on the ladder (watch, ask, slow, reroute, inspect, hold, human)". State what a careful operator would insist on, not what the current rules happen to do. Missed expectations are reported as bugs.`;
 
 export async function sparkScenarios(spec: TwinSpec, planned: TaggedScenario[]) {
   const ids = new Set(spec.objects.map((o) => o.id));
@@ -41,6 +42,11 @@ ${TEMPLATES[spec.domain].agentHints}`,
           if (e.t > s.durationMin) issues.push(`${s.id}: event at t=${e.t} is after durationMin ${s.durationMin}`);
         }
         if (s.signals.length + s.stateChanges.length === 0) issues.push(`${s.id}: has no events`);
+        if (!s.expectations?.length) issues.push(`${s.id}: add 1-2 expectations`);
+        for (const e of s.expectations ?? []) {
+          if (!ids.has(e.subject)) issues.push(`${s.id}: expectation on unknown subject "${e.subject}"`);
+          if (e.byT > s.durationMin) issues.push(`${s.id}: expectation byT=${e.byT} is after durationMin ${s.durationMin}`);
+        }
       }
       if (new Set(scenarios.map((s) => s.id)).size !== scenarios.length) issues.push("scenario ids must be unique");
       return issues;

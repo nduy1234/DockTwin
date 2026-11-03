@@ -15,7 +15,7 @@ A container terminal runs on signals that disagree. The carrier's paperwork says
 DockTwin is an agent that:
 
 1. **Builds** a twin from a description, spoken or typed, or from a yard/gate photo. Muse Spark writes a structured spec (objects plus `when → then` rules in a small JSON DSL), validated by zod. SAM 3.1 segments the photo into containers, cranes, and lanes that seed the twin.
-2. **Stress-tests** it. Seeded scenarios plus adversarial scenarios invented by Muse Spark run through a deterministic simulation. The engine reports behavior bugs: rules that fight at equal priority, rules that never settle, safety expectations nobody enforces, rules that never fire, and fields nothing provides.
+2. **Stress-tests** it. Seeded scenarios plus adversarial scenarios invented by Muse Spark run through a deterministic simulation. The engine reports behavior bugs: rules that fight at equal priority, rules that never settle, safety rules nobody enforces, rules that never fire, and fields nothing provides. Each Muse Spark scenario also carries **expectations** ("by t=60 this reefer must reach at least *inspect*"), and the engine checks them as test oracles. The same defect on many boxes is grouped into one root cause.
 3. **Repairs** the rules. Muse Spark proposes each fix as a rule diff. The engine applies it to a copy and re-runs every scenario. A fix is shown as *verified*, *needs review*, or *rejected*, and nothing is applied without the planner's approval.
 4. **Decides** per box, with evidence. It picks the gentlest effective action on a ladder: **watch → ask → slow → reroute → inspect → hold → hand to a human**. Each decision shows which signals were trusted and why (source trust scores), the simulation evidence, a confidence score, and an itemized cost-of-delay estimate. Low-confidence or high-impact actions require human approval. Every step lands in a SHA-256 hash-chained audit log.
 
@@ -84,7 +84,7 @@ flowchart LR
 | Model | ID | Endpoint | Used for | Code |
 | --- | --- | --- | --- | --- |
 | Muse Spark | `muse-spark-1.3` | `POST /v1/chat/completions` with `response_format: json_schema` | Describe → twin spec (text, or text + photo objects) | [`api/build`](src/app/api/build/route.ts), [`lib/meta/spark.ts`](src/lib/meta/spark.ts) |
-| Muse Spark | `muse-spark-1.3` | same | Stress agent: invents adversarial scenarios | [`lib/meta/agents.ts`](src/lib/meta/agents.ts) `sparkScenarios` |
+| Muse Spark | `muse-spark-1.3` | same | Stress agent: invents adversarial scenarios plus expectations the engine checks | [`lib/meta/agents.ts`](src/lib/meta/agents.ts) `sparkScenarios` |
 | Muse Spark | `muse-spark-1.3` | same | Fix agent: proposes rule diffs | `sparkFix` |
 | Muse Spark (vision) | `muse-spark-1.3` | same, with image input | Reads container codes and reefer units inside SAM's boxes | `sparkLabelBoxes` |
 | Muse Spark | `muse-spark-1.3` | same | Explains an engine decision (cannot change it) | [`api/explain`](src/app/api/explain/route.ts) |
@@ -92,6 +92,13 @@ flowchart LR
 | Muse Voice Transcribe | `muse-voice-transcribe-1.0` | `POST /v1/asr/transcribe` (multipart: JSON `request` + WAV `audio`) | Spoken descriptions, biased toward terminal vocabulary | [`lib/meta/voice.ts`](src/lib/meta/voice.ts) |
 
 Endpoints and IDs follow [dev.meta.ai/docs](https://dev.meta.ai/docs/models) and the [Meta Model cookbook](https://github.com/meta-models/meta-model-cookbook). The UI shows which Meta model handled each step, with latency, retries, and schema repairs. The audit log records the model behind every action.
+
+**Measured live (Nov 3, 2026).**
+- Describe → twin: about 19 s with `reasoning_effort: "low"`. The default took about 38 s with no quality gain for this task.
+- Demo mode, from click to every fix verified (scenario agent plus parallel fix agents): about 40 s. In that run, the engine verified every fix Muse Spark proposed.
+- SAM 3.1, three noun phrases in parallel: about 2 s.
+- Vision code reading: 17–33 s.
+- Voice transcription of an 11 s clip: about 3 s.
 
 **Reliability.** Retries use exponential backoff with jitter; 400s are never retried. Structured output is decoded against the JSON Schema, then zod-parsed and semantically checked. Problems go back to the model for up to two repair rounds. If a Muse Spark scenario or fix call fails, the run continues with seeded scenarios, and a clearly labeled engine-heuristic fix is offered instead.
 
@@ -110,7 +117,7 @@ npm run dev                  # http://localhost:3000
 ```
 
 ```bash
-npm test          # 58 unit + golden tests (Vitest)
+npm test          # 60 unit + golden tests (Vitest)
 npm run typecheck
 npm run build
 ```
@@ -133,7 +140,7 @@ npm run build
    - Confidence is 0.72, with an itemized cost estimate.
    - The card is marked **needs human approval**.
    Approve it, override it with a reason, or hand it to a supervisor. Click **Explain (Muse Spark)**.
-5. **Voice / photo:** speak a new description, or open *Photo → Twin* and segment the gate sample with SAM 3.1.
+5. **Voice / photo:** speak a new description, or open *Photo → Twin* and segment the *Box stack* sample. SAM 3.1 finds about 33 boxes, and Muse Spark vision reads their real container codes.
 6. **Creator mode:** switch tabs and build the automatic door. The stress test finds the chattering door (R2/R3 never settle when someone stands still in the beam) and the unhandled power loss, then verifies the fixes. Same engine, different template.
 7. **Audit log:** every step, with the Meta model that acted, hash-chained and exportable.
 
@@ -164,7 +171,8 @@ Everything in this repository was written during the building period. The only e
 | Oct 29 | `bc1d9f2` | Source trust and contradiction resolution; cost-of-delay model; decision ladder with safety floor, confidence, approval policy; hash-chained audit log; Muse Spark explanations |
 | Oct 29 | `b36fa81` | Muse Voice Transcribe (browser WAV capture); SAM 3.1 photo segmentation + Muse Spark vision labels → twin objects; bundled sample photos |
 | Oct 29 | `528c79d` | "Ordinary Tuesday" creator mode: creator template, generic interaction stress, door/gripper meshes |
-| Oct 29 | *this commit* | Demo mode (seeded 100-box terminal), animated replay, golden test, README, DEMO.md |
+| Oct 29 | `b741d8f` | Demo mode (seeded 100-box terminal), animated replay, golden test, README, DEMO.md |
+| Nov 3 | *this commit* | First live runs against the Meta Model API: latency tuning, SAM noun phrases chosen from measurements, stress-agent expectations as engine-checked oracles, root-cause grouping of bugs, stack-tier fix |
 
 Third-party code is used only as npm dependencies (Next.js, React, three.js / React Three Fiber / drei, zod, the OpenAI SDK pointed at the Meta Model API, `@meta-sam/parser`, Tailwind, Vitest). Sample photos are public domain or CC0; see [`public/samples/LICENSES.md`](public/samples/LICENSES.md).
 

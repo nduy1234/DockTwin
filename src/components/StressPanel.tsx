@@ -132,6 +132,8 @@ export function StressPanel({ data, scenarioIdx, tickIdx, fixes, onScenario, onT
                 <span className={`font-mono text-xs uppercase ${SEV[b.severity]}`}>{b.kind.replace("_", " ")}</span>{" "}
                 <span className="text-sand/40">
                   · {b.scenarioId} · t={b.firstT}m · ×{b.count}
+                  {b.alsoAffects.length > 0 && ` · same defect on ${b.alsoAffects.length} more box${b.alsoAffects.length > 1 ? "es" : ""}`}
+                  {b.kind === "expectation_unmet" && " · oracle written by the stress agent"}
                 </span>
                 <p className="mt-0.5">{b.message}</p>
               </div>

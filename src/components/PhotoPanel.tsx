@@ -5,12 +5,14 @@ import type { Segment } from "@/engine/photo";
 import type { TwinObject } from "@/engine/schema";
 import type { ModelCall } from "@/lib/meta/callLog";
 
+// Ordered by what SAM 3.1 finds best (measured live): the yard aerial yields ~60 boxes,
+// the stack ~33; the gate shot is mostly cranes (its stacks are too distant).
 const SAMPLES = [
-  { src: "/samples/gate-staten-island.jpg", label: "Terminal gate" },
   { src: "/samples/yard-port-elizabeth.jpg", label: "Yard aerial" },
   { src: "/samples/stack-colored.jpg", label: "Box stack" },
+  { src: "/samples/gate-staten-island.jpg", label: "Gate + cranes" },
 ];
-const CONCEPT_COLOR: Record<string, string> = { "shipping container": "#d9622b", crane: "#d9a42b", "road lane": "#6f8fa6" };
+const CONCEPT_COLOR: Record<string, string> = { "shipping container": "#d9622b", crane: "#d9a42b", road: "#6f8fa6" };
 const MAX_SIDE = 1280;
 
 type Result = { url: string; width: number; height: number; segments: Segment[]; objects: TwinObject[]; warnings: string[]; calls: ModelCall[] };

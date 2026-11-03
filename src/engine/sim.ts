@@ -10,7 +10,7 @@ import { LADDER, type LadderLevel, type Scalar, type Scenario, type TwinSpec } f
 
 export const MAX_FIXPOINT_ITERATIONS = 10;
 
-export type BugKind = "conflict" | "oscillation" | "invariant_violation" | "dead_rule" | "unknown_fact";
+export type BugKind = "conflict" | "oscillation" | "invariant_violation" | "expectation_unmet" | "dead_rule" | "unknown_fact";
 
 export type Bug = {
   kind: BugKind;
@@ -208,6 +208,28 @@ export function runScenario(spec: TwinSpec, scenario: Scenario): SimResult {
       levels,
       changed,
     });
+  }
+
+  // Scenario oracles: the stress agent's stated expectations, checked by the engine.
+  for (const e of scenario.expectations ?? []) {
+    let peak: LadderLevel | null = null;
+    const why: string[] = [];
+    for (const tick of ticks) {
+      if (tick.t > e.byT) break;
+      const l = tick.levels[e.subject] ?? null;
+      if (levelIndex(l) > levelIndex(peak)) peak = l;
+      for (const f of tick.fired) if (f.subject === e.subject && !why.includes(f.ruleId)) why.push(f.ruleId);
+    }
+    if (levelIndex(peak) < levelIndex(e.minLevel)) {
+      addBug(`expect:${scenario.id}:${e.subject}:${e.minLevel}`, {
+        kind: "expectation_unmet",
+        severity: "warn",
+        message: `Stress agent expected ${e.subject} to reach at least ${e.minLevel} by t=${e.byT}m (${e.why}); rules produced ${peak ?? "no action"}.`,
+        ruleIds: why,
+        subject: e.subject,
+        firstT: e.byT,
+      });
+    }
   }
 
   for (const r of spec.rules) {

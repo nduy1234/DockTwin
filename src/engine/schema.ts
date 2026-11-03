@@ -204,6 +204,18 @@ export const StateChange = z.object({
 });
 export type StateChange = z.infer<typeof StateChange>;
 
+/**
+ * A test oracle attached to a scenario (written by the Muse Spark stress agent):
+ * by time byT, the rules must have driven subject to at least minLevel.
+ */
+export const Expectation = z.object({
+  subject: z.string().min(1),
+  minLevel: LadderLevel,
+  byT: z.number().int().min(0),
+  why: z.string().describe("one sentence a planner would accept"),
+});
+export type Expectation = z.infer<typeof Expectation>;
+
 export const Scenario = z.object({
   id: z.string().min(1),
   name: z.string(),
@@ -212,6 +224,7 @@ export const Scenario = z.object({
   tickMin: z.number().int().min(1).max(120),
   stateChanges: z.array(StateChange),
   signals: z.array(SignalEvent),
+  expectations: z.array(Expectation).max(4).optional(),
 });
 export type Scenario = z.infer<typeof Scenario>;
 

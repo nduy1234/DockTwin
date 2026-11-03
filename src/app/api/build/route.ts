@@ -42,6 +42,8 @@ export async function POST(req: Request) {
           ...seed.filter((o) => !ids.has(o.id)).map((o) => `photo object "${o.id}" is missing; keep every detected object`),
         ];
       },
+      // Measured live: default effort ~38 s, medium ~32 s, low ~19 s with equally usable specs.
+      reasoningEffort: "low",
       mock: () => {
         const spec = template.mock(text);
         const ids = new Set(seed.map((o) => o.id));

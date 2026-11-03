@@ -20,12 +20,6 @@
       "scenario": "S3",
       "firstT": 40,
       "count": 9
-    },
-    {
-      "key": "conflict:R4,R5:TGHU0254611:gate_route",
-      "scenario": "S6",
-      "firstT": 250,
-      "count": 2
     }
   ],
   "fixes": [
@@ -39,12 +33,6 @@
       "bug": "inv:INV2:MSCU7154023",
       "verdict": "verified",
       "resolved": 1,
-      "introduced": []
-    },
-    {
-      "bug": "conflict:R4,R5:TGHU0254611:gate_route",
-      "verdict": "verified",
-      "resolved": 2,
       "introduced": []
     }
   ],

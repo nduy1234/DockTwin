@@ -1,5 +1,7 @@
 # DockTwin: 3-minute demo video script
 
+**Live timings (measured Nov 3):** Demo mode ≈ 40 s until all fixes are verified · Build twin ≈ 19 s · SAM ≈ 2 s · vision ≈ 30 s · voice ≈ 3 s. Cut or narrate over the waits.
+
 **Setup before recording:** deployed app (or `npm run dev`) with a real `MODEL_API_KEY` and `MOCK_META` unset. The model badges must show `muse-spark-1.3`, `sam-3.1`, and `muse-voice-transcribe-1.0` with no `MOCK` tag. Clear the audit log. Browser at 1440×900, microphone allowed.
 
 > ⚠️ **Cite the $68B figure** on screen and in the submission (source + year) before recording. Only claim numbers you can source.
@@ -20,7 +22,7 @@
 
 Show the transcript appear. Point at the badge: *muse-voice-transcribe-1.0*.
 
-**0:30 · Photo.** Open **Photo → Twin**, click the *Terminal gate* sample. SAM 3.1 masks appear over containers and cranes; badge *sam-3.1*. Then the Muse Spark vision line: "codes read by Muse Spark vision".
+**0:30 · Photo.** Open **Photo → Twin** and click the *Box stack* sample. SAM 3.1 masks appear on about 33 containers in ~2 s (badge *sam-3.1*). Muse Spark vision then reads a dozen real container codes in ~30 s; start it before you speak, or cut.
 > "SAM 3.1 segments the yard; Muse Spark reads what's in each box. Those detections seed the twin."
 
 **0:40 · Demo mode.** Click **▶ Demo mode**. The 100-box terminal appears and the stress test runs.
@@ -29,17 +31,20 @@ Show the transcript appear. Point at the badge: *muse-voice-transcribe-1.0*.
 Let the **Perfect storm** replay play; boxes light up by action level.
 
 **0:55 · Bugs, fixed and proven.** Scroll to **Behavior bugs**:
-> "It found two real bugs. Two rules fight over the gate route, so a heavy box declared *empty* goes to the fast lane. And the reefer rule trusts the carrier over the sensor, so a box 3.5 degrees warm gets no action at all."
+> "It found real bugs. Two rules fight over the gate route, so a heavy box declared *empty* goes to the fast lane. And the reefer rule trusts the carrier over the sensor, so a box 3.5 degrees warm gets no action at all."
 
 Point at a fix diff and the green **VERIFIED** badge:
 > "Muse Spark proposes each fix as a rule diff. The engine doesn't take its word for it: it replays every scenario on the patched twin. Bug gone, nothing new broken: verified."
+
+Point at the **expectation unmet** card ("oracle written by the stress agent"):
+> "Muse Spark doesn't just invent scenarios. It states what *must* happen, and the engine checks it. Here it insisted a 7-degree-warm reefer gets inspected, whatever the carrier claims."
 
 Click **Approve & apply fix** → stress re-runs clean.
 
 **1:10 · Decision with human approval.** Pick scenario **S3 Reefer creeping warm**, scrub to *t=40*. Open the decision card for MSCU7154023:
 > "For each box, the gentlest action that still works. Here: *inspect*. The sensor outranks the carrier: trust 0.90 versus 0.30 once they contradict. Confidence 0.72, estimated cost of inspecting about fifteen hundred dollars, most of it spoilage risk on $85,000 of cargo. Because the rules under-reacted, a human has to sign off."
 
-Click **Explain (Muse Spark)**, then **Approve inspect**. Show the new audit-log entry.
+**Pause the replay (❚❚) first**, because explanations belong to the tick you're on. Then click **Explain (Muse Spark)**, then **Approve inspect**. Show the new audit-log entry.
 
 ## 1:30 – 2:15 · Ordinary Tuesday: same engine, different world
 

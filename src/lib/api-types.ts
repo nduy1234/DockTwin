@@ -1,15 +1,15 @@
 /** Response shapes shared by API routes and the client. */
 import type { TaggedScenario } from "@/engine/scenarios";
 import type { RuleDiff, TwinSpec } from "@/engine/schema";
-import type { Bug, SimResult } from "@/engine/sim";
-import type { DiffLine, Verification } from "@/engine/verify";
+import type { SimResult } from "@/engine/sim";
+import type { DiffLine, RankedBug, Verification } from "@/engine/verify";
 import type { ModelCall } from "./meta/callLog";
 
 export type StressResponse = {
   seed: number;
   scenarios: TaggedScenario[];
   results: SimResult[];
-  bugs: (Bug & { scenarioId: string })[];
+  bugs: RankedBug[];
   calls: ModelCall[];
   agentError: string | null;
 };

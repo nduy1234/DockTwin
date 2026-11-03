@@ -31,7 +31,7 @@ describe("segmentsToTwin", () => {
     seg("shipping container", "c", 500, 400, 700, 480), // ground, right, inside lane
     seg("shipping container", "tiny", 900, 10, 905, 14), // noise
     seg("crane", "k", 800, 0, 1000, 300),
-    seg("road lane", "l", 450, 380, 750, 600),
+    seg("road", "l", 450, 380, 750, 600),
   ];
   const objs = segmentsToTwin(segments, 1280, 720, {
     "shipping container#c": { code: "MSCU1234565", reefer: true, color: "white" },
