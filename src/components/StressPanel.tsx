@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { LadderLevel } from "@/engine/schema";
 import type { FixState, StressResponse } from "@/lib/api-types";
 import { LEVEL_COLOR } from "./twin/colors";
 
@@ -13,6 +14,8 @@ type Props = {
   data: StressResponse;
   scenarioIdx: number;
   tickIdx: number;
+  /** Levels shown for this tick; the same ones the 3D twin uses. */
+  levels?: Record<string, LadderLevel>;
   fixes: Record<string, FixState>;
   onScenario: (i: number) => void;
   onTick: (i: number) => void;
@@ -23,7 +26,7 @@ type Props = {
 
 const REPLAY_MS = 700;
 
-export function StressPanel({ data, scenarioIdx, tickIdx, fixes, onScenario, onTick, onApply, autoPlay = 0 }: Props) {
+export function StressPanel({ data, scenarioIdx, tickIdx, levels, fixes, onScenario, onTick, onApply, autoPlay = 0 }: Props) {
   const result = data.results[scenarioIdx]!;
   const scenario = data.scenarios[scenarioIdx]!;
   const tick = result.ticks[tickIdx];
@@ -105,7 +108,7 @@ export function StressPanel({ data, scenarioIdx, tickIdx, fixes, onScenario, onT
             />
           </label>
           <div className="flex flex-wrap gap-1 text-[11px]">
-            {Object.entries(tick?.levels ?? {}).map(([id, l]) => (
+            {Object.entries(levels ?? tick?.levels ?? {}).map(([id, l]) => (
               <span key={id} className="rounded px-1.5 font-mono text-white" style={{ background: LEVEL_COLOR[l] }}>
                 {id}: {l}
               </span>

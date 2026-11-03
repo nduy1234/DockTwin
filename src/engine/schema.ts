@@ -8,6 +8,7 @@
  * interprets it.
  */
 import { z } from "zod";
+import { checkProtectedFacts, PORT_KINDS } from "./safety";
 
 export const Scalar = z.union([z.string(), z.number(), z.boolean()]);
 export type Scalar = z.infer<typeof Scalar>;
@@ -17,7 +18,7 @@ export const LADDER = ["watch", "ask", "slow", "reroute", "inspect", "hold", "hu
 export const LadderLevel = z.enum(LADDER);
 export type LadderLevel = z.infer<typeof LadderLevel>;
 
-export const PORT_KINDS = ["container", "reefer_plug", "gate_lane", "crane", "scale", "yard_block"] as const;
+export { PORT_KINDS };
 export const CREATOR_KINDS = ["door", "sensor", "motor", "gripper", "actor", "button"] as const;
 export const ObjectKind = z.enum([...PORT_KINDS, ...CREATOR_KINDS]);
 export type ObjectKind = z.infer<typeof ObjectKind>;
@@ -182,7 +183,7 @@ export function checkTwin(spec: TwinSpec): string[] {
     }
     if (s.when.all.length === 0 && s.when.any.length === 0) issues.push(`${tag} has an empty condition`);
   }
-  return issues;
+  return [...issues, ...checkProtectedFacts(spec)];
 }
 
 /** A claim from an external source. May be wrong; the trust layer weighs it. */

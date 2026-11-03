@@ -60,9 +60,14 @@
     "S1@20": {
       "level": "inspect",
       "ruleLevel": "inspect",
-      "floor": null,
+      "floor": "SAFETY-DECLARED-EMPTY",
       "confidence": 0.83,
-      "approval": [],
+      "approval": [
+        "inspect is a high-impact action",
+        "safety policy SAFETY-DECLARED-EMPTY is active",
+        "rules conflict on this box",
+        "rules route this box to fast_lane while the action is inspect"
+      ],
       "costUsd": 436
     },
     "S2@30": {
@@ -72,9 +77,22 @@
       "confidence": 0.95,
       "approval": [
         "hold is a high-impact action",
-        "estimated cost $1,664 ≥ $1,500"
+        "estimated cost $1,664 ≥ $1,500",
+        "safety policy SAFETY-CUSTOMS is active"
       ],
       "costUsd": 1664
+    },
+    "S3@40": {
+      "level": "inspect",
+      "ruleLevel": null,
+      "floor": "INV2",
+      "confidence": 0.72,
+      "approval": [
+        "inspect is a high-impact action",
+        "rules under-reacted; raised to safety floor (INV2)",
+        "safety policy SAFETY-REEFER-TEMP is active"
+      ],
+      "costUsd": 1456
     },
     "S3@60": {
       "level": "inspect",
@@ -82,8 +100,10 @@
       "floor": "INV2",
       "confidence": 0.72,
       "approval": [
+        "inspect is a high-impact action",
         "estimated cost $2,476 ≥ $1,500",
-        "rules under-reacted; raised to safety floor (INV2)"
+        "rules under-reacted; raised to safety floor (INV2)",
+        "safety policy SAFETY-REEFER-TEMP is active"
       ],
       "costUsd": 2476
     },
@@ -94,7 +114,12 @@
       "confidence": 0.85,
       "approval": [
         "hold is a high-impact action",
-        "estimated cost $9,824 ≥ $1,500"
+        "estimated cost $9,824 ≥ $1,500",
+        "safety policy SAFETY-CUSTOMS is active",
+        "safety policy SAFETY-REEFER-TEMP is active",
+        "safety policy SAFETY-DECLARED-EMPTY is active",
+        "rules conflict on this box",
+        "rules route this box to fast_lane while the action is hold"
       ],
       "costUsd": 9824
     }
