@@ -4,11 +4,12 @@ import { PHOTO_CONCEPTS, segmentsToTwin, type Labels, type Segment } from "@/eng
 import { sparkLabelBoxes } from "@/lib/meta/agents";
 import type { ModelCall } from "@/lib/meta/callLog";
 import { MetaConfigError } from "@/lib/meta/client";
+import { BUDGET_MS } from "@/lib/meta/budget";
 import { SamError, segment } from "@/lib/meta/sam";
 import { SparkError } from "@/lib/meta/spark";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const Body = z.object({
   image: z
@@ -33,7 +34,9 @@ export async function POST(req: Request) {
   const warnings: string[] = [];
   const segments: Segment[] = [];
   try {
-    const runs = await Promise.allSettled(Object.keys(PHOTO_CONCEPTS).map((c) => segment(image, c)));
+    // The three SAM requests run in parallel under one shared budget.
+    const samDeadline = Date.now() + BUDGET_MS.segment;
+    const runs = await Promise.allSettled(Object.keys(PHOTO_CONCEPTS).map((c) => segment(image, c, samDeadline)));
     for (const [i, r] of runs.entries()) {
       const concept = Object.keys(PHOTO_CONCEPTS)[i]!;
       if (r.status === "fulfilled") {

@@ -1,5 +1,6 @@
 import "server-only";
 import OpenAI from "openai";
+import { REQUEST_TIMEOUT_MS } from "./budget";
 
 /** Exact values from https://dev.meta.ai/docs/models and the cookbook. */
 export const META_BASE_URL = "https://api.meta.ai/v1";
@@ -38,7 +39,8 @@ let cached: OpenAI | null = null;
 
 /** The OpenAI SDK does not auto-read MODEL_API_KEY, so pass it explicitly. */
 export function meta(): OpenAI {
-  // SDK retries off: lib/meta/retry.ts owns backoff so attempts are logged.
-  cached ??= new OpenAI({ baseURL: META_BASE_URL, apiKey: apiKey(), maxRetries: 0, timeout: 90_000 });
+  // SDK retries off: lib/meta/retry.ts owns backoff and deadlines so attempts are logged.
+  // Each call also passes its own (smaller) per-attempt timeout; see budget.ts.
+  cached ??= new OpenAI({ baseURL: META_BASE_URL, apiKey: apiKey(), maxRetries: 0, timeout: REQUEST_TIMEOUT_MS });
   return cached;
 }

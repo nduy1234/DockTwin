@@ -3,7 +3,7 @@ import { MetaConfigError } from "@/lib/meta/client";
 import { MAX_AUDIO_BYTES, transcribe, TranscribeError } from "@/lib/meta/voice";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /** Domain words Muse Voice Transcribe should not mis-hear. */
 const BASE_KEYWORDS = ["reefer", "customs hold", "gate lane", "TEU", "demurrage", "setpoint", "chassis", "MSCU", "MAEU", "CMAU"];

@@ -172,7 +172,7 @@ Everything in this repository was written during the building period. The only e
 | Oct 29 | `b36fa81` | Muse Voice Transcribe (browser WAV capture); SAM 3.1 photo segmentation + Muse Spark vision labels → twin objects; bundled sample photos |
 | Oct 29 | `528c79d` | "Ordinary Tuesday" creator mode: creator template, generic interaction stress, door/gripper meshes |
 | Oct 29 | `b741d8f` | Demo mode (seeded 100-box terminal), animated replay, golden test, README, DEMO.md |
-| Nov 3 | *this commit* | First live runs against the Meta Model API: latency tuning, SAM noun phrases chosen from measurements, stress-agent expectations as engine-checked oracles, root-cause grouping of bugs, stack-tier fix |
+| Nov 3 | `9b5482b` | First live runs against the Meta Model API: latency tuning, SAM noun phrases chosen from measurements, stress-agent expectations as engine-checked oracles, root-cause grouping of bugs, stack-tier fix |
 
 Third-party code is used only as npm dependencies (Next.js, React, three.js / React Three Fiber / drei, zod, the OpenAI SDK pointed at the Meta Model API, `@meta-sam/parser`, Tailwind, Vitest). Sample photos are public domain or CC0; see [`public/samples/LICENSES.md`](public/samples/LICENSES.md).
 

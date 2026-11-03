@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { MetaConfigError } from "@/lib/meta/client";
+import { BUDGET_MS } from "@/lib/meta/budget";
 import { SparkError, sparkJSON } from "@/lib/meta/spark";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 300;
 
 const Explanation = z.object({
   headline: z.string().describe("max 12 words, e.g. 'Inspect MSCU1234565: scale contradicts the carrier'"),
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
     const { data, call } = await sparkJSON({
       step: "explain decision",
       schemaName: "Explanation",
+      budgetMs: BUDGET_MS.explain,
       schema: Explanation,
       system: SYSTEM,
       user: JSON.stringify(d),

@@ -10,7 +10,7 @@ import { MetaConfigError } from "@/lib/meta/client";
 import { SparkError } from "@/lib/meta/spark";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const Body = z.object({ spec: TwinSpec, seed: z.number().int().default(20261104) });
 

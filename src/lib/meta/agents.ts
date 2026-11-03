@@ -6,6 +6,7 @@ import { RuleDiff, Scenario, type TwinSpec } from "@/engine/schema";
 import type { Bug } from "@/engine/sim";
 import { applyDiff } from "@/engine/verify";
 import { TEMPLATES } from "@/templates";
+import { BUDGET_MS } from "./budget";
 import { sparkJSON } from "./spark";
 
 const ScenarioSet = z.object({ scenarios: z.array(Scenario).min(1).max(3) });
@@ -26,6 +27,7 @@ export async function sparkScenarios(spec: TwinSpec, planned: TaggedScenario[]) 
   const { data, call } = await sparkJSON({
     step: "stress agent: invent scenarios",
     schemaName: "ScenarioSet",
+    budgetMs: BUDGET_MS.scenarios,
     schema: ScenarioSet,
     system: `${SCENARIO_SYSTEM}
 
@@ -73,6 +75,7 @@ export async function sparkFix(spec: TwinSpec, bug: Bug, scenario: TaggedScenari
   return sparkJSON({
     step: `fix agent: ${bug.kind.replace("_", " ")}`,
     schemaName: "RuleDiff",
+    budgetMs: BUDGET_MS.fix,
     schema: RuleDiff,
     system: `${FIX_SYSTEM}
 
@@ -114,6 +117,7 @@ export async function sparkLabelBoxes(imageDataUrl: string, boxes: { id: string;
   return sparkJSON({
     step: "vision: read boxes",
     schemaName: "BoxLabels",
+    budgetMs: BUDGET_MS.vision,
     schema: BoxLabels,
     system:
       "You read shipping containers in a terminal photo. For each numbered pixel box (left,top,right,bottom) report the container number only if you can actually read it, whether a reefer unit is visible, and the dominant color. Never guess a code; use null.",

@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { checkTwin, TwinObject, TwinSpec } from "@/engine/schema";
 import { MetaConfigError } from "@/lib/meta/client";
+import { BUDGET_MS } from "@/lib/meta/budget";
 import { SparkError, sparkJSON } from "@/lib/meta/spark";
 import { TEMPLATES } from "@/templates";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const Body = z.object({
   text: z.string().trim().min(3).max(4000),
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
     const { data, call } = await sparkJSON({
       step: seed.length ? "photo+text → build twin" : "describe→build twin",
       schemaName: "TwinSpec",
+      budgetMs: BUDGET_MS.build,
       schema: TwinSpec,
       system: template.system,
       user,

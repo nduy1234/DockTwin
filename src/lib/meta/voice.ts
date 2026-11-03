@@ -1,6 +1,7 @@
 import "server-only";
 import type { ModelCall } from "./callLog";
 import { apiKey, isMock, META_BASE_URL, MODELS } from "./client";
+import { BUDGET_MS, MIN_ATTEMPT_MS, REQUEST_TIMEOUT_MS } from "./budget";
 import { withRetry } from "./retry";
 import { errorText } from "./spark";
 
@@ -52,18 +53,18 @@ export async function transcribe(wav: Blob, keywords: string[]): Promise<{ text:
 
   try {
     const json = await withRetry(
-      async () => {
+      async (_, timeoutMs) => {
         const form = new FormData();
         form.append("request", new Blob([JSON.stringify(request)], { type: "application/json" }));
         form.append("audio", wav, "speech.wav");
-        const res = await fetch(TRANSCRIBE_URL, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form });
+        const res = await fetch(TRANSCRIBE_URL, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(timeoutMs) });
         if (!res.ok) {
           const body = await res.text().catch(() => "");
           throw Object.assign(new Error(`transcribe failed: ${body.slice(0, 200) || res.statusText}`), { status: res.status });
         }
         return (await res.json()) as { transcript?: string; audioDurationMs?: number };
       },
-      { onAttempt: () => call.attempts++ },
+      { deadline: started + BUDGET_MS.transcribe, requestTimeoutMs: REQUEST_TIMEOUT_MS, minAttemptMs: MIN_ATTEMPT_MS, onAttempt: () => call.attempts++ },
     );
     Object.assign(call, { ok: true, ms: Date.now() - started });
     return { text: (json.transcript ?? "").trim(), durationMs: json.audioDurationMs ?? 0, call };

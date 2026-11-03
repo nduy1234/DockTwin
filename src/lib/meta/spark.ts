@@ -4,6 +4,7 @@ import type { z } from "zod";
 import { jsonSchemaFor } from "@/engine/schema";
 import type { ModelCall } from "./callLog";
 import { isMock, meta, MODELS } from "./client";
+import { MIN_ATTEMPT_MS, REQUEST_TIMEOUT_MS } from "./budget";
 import { withRetry } from "./retry";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -35,6 +36,8 @@ export async function sparkJSON<T>(args: {
   mock: () => T;
   maxRepairs?: number;
   reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  /** Total time for all attempts and repair rounds (see budget.ts). */
+  budgetMs: number;
 }): Promise<{ data: T; call: ModelCall }> {
   const started = Date.now();
   const call: ModelCall = {
@@ -64,18 +67,23 @@ export async function sparkJSON<T>(args: {
   };
   const usage = { input: 0, output: 0 };
   const maxRepairs = args.maxRepairs ?? 2;
+  // One deadline spans every retry and every repair round.
+  const deadline = started + args.budgetMs;
 
   try {
     for (let round = 0; round <= maxRepairs; round++) {
       const res = await withRetry(
-        () =>
-          client.chat.completions.create({
-            model: MODELS.spark,
-            messages,
-            response_format: responseFormat,
-            ...(args.reasoningEffort ? { reasoning_effort: args.reasoningEffort } : {}),
-          }),
-        { onAttempt: () => call.attempts++ },
+        (_, timeoutMs) =>
+          client.chat.completions.create(
+            {
+              model: MODELS.spark,
+              messages,
+              response_format: responseFormat,
+              ...(args.reasoningEffort ? { reasoning_effort: args.reasoningEffort } : {}),
+            },
+            { timeout: timeoutMs, signal: AbortSignal.timeout(timeoutMs) },
+          ),
+        { deadline, requestTimeoutMs: REQUEST_TIMEOUT_MS, minAttemptMs: MIN_ATTEMPT_MS, onAttempt: () => call.attempts++ },
       );
       usage.input += res.usage?.prompt_tokens ?? 0;
       usage.output += res.usage?.completion_tokens ?? 0;

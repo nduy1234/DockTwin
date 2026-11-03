@@ -3,6 +3,7 @@ import { decodeMaskToSVGPath, parseImageStream, recordsOfKind } from "@meta-sam/
 import type { Segment } from "@/engine/photo";
 import type { ModelCall } from "./callLog";
 import { isMock, meta, MODELS } from "./client";
+import { MIN_ATTEMPT_MS, REQUEST_TIMEOUT_MS } from "./budget";
 import { withRetry } from "./retry";
 import { errorText } from "./spark";
 
@@ -48,7 +49,7 @@ async function* withTextDone(stream: AsyncIterable<unknown>): AsyncGenerator<{ t
 }
 
 /** SAM 3.1 on one image for one noun phrase. Returns every match as box + mask path. */
-export async function segment(imageDataUrl: string, concept: string): Promise<{ segments: Segment[]; call: ModelCall }> {
+export async function segment(imageDataUrl: string, concept: string, deadline: number): Promise<{ segments: Segment[]; call: ModelCall }> {
   const started = Date.now();
   const call: ModelCall = {
     step: `segment "${concept}"`,
@@ -66,8 +67,9 @@ export async function segment(imageDataUrl: string, concept: string): Promise<{ 
   const client = meta();
   try {
     const result = await withRetry(
-      async () => {
-        const stream = await client.responses.create({
+      async (_, timeoutMs) => {
+        const stream = await client.responses.create(
+          {
           model: MODELS.sam,
           stream: true,
           input: [
@@ -80,10 +82,13 @@ export async function segment(imageDataUrl: string, concept: string): Promise<{ 
               ],
             },
           ],
-        });
+          },
+          // The signal also aborts the stream mid-read, so a stalled stream cannot outlive its budget.
+          { timeout: timeoutMs, signal: AbortSignal.timeout(timeoutMs) },
+        );
         return parseImageStream(withTextDone(stream)).finalResult;
       },
-      { onAttempt: () => call.attempts++ },
+      { deadline, requestTimeoutMs: REQUEST_TIMEOUT_MS, minAttemptMs: MIN_ATTEMPT_MS, onAttempt: () => call.attempts++ },
     );
     if (result.outcome.status !== "completed") throw new Error(`segmentation ${result.outcome.status}`);
     const masks = new Map(recordsOfKind(result.records, "mask").map((m) => [m.objectId, m]));

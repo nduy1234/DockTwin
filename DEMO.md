@@ -4,7 +4,7 @@
 
 **Setup before recording:** deployed app (or `npm run dev`) with a real `MODEL_API_KEY` and `MOCK_META` unset. The model badges must show `muse-spark-1.3`, `sam-3.1`, and `muse-voice-transcribe-1.0` with no `MOCK` tag. Clear the audit log. Browser at 1440×900, microphone allowed.
 
-> ⚠️ **Cite the $68B figure** on screen and in the submission (source + year) before recording. Only claim numbers you can source.
+> Source for the $68B figure: Otonomi, *2025 Supply Chain Disruption Market Report*. Show it on screen when you say the number, and cite it in the submission.
 
 ---
 
@@ -13,7 +13,7 @@
 **Screen:** title card → the Pacific Gate terminal in 3D (Demo mode loaded, idle).
 
 **Voice-over:**
-> "Shipping delays cost the industry an estimated $68 billion in 2025 [cite]. Most of that starts at the terminal: a box where the paperwork says *empty* and the scale says *24 tons*. A reefer warming up while the carrier says it's fine. A customs hold landing just as the lane goes down. Planners juggle these conflicts by hand. DockTwin tests the plan before the disruption hits."
+> "Shipping delays cost the industry an estimated $68 billion in 2025 (Otonomi, 2025 Supply Chain Disruption Market Report). At a terminal, a delay often starts small: a box where the paperwork says *empty* and the scale says *24 tons*. A reefer warming up while the carrier says it's fine. A customs hold landing just as the lane goes down. Planners juggle these conflicts by hand. DockTwin tests the plan before the disruption hits."
 
 ## 0:20 – 1:30 · Voice and photo → 3D twin → stress test → approved decision
 
