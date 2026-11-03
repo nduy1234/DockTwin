@@ -9,7 +9,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "engines": {
     "node": ">=20.17.0"
@@ -33,6 +34,7 @@
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.186.0",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "~5.9.3",
     "vitest": "^5.0.5"
   }
