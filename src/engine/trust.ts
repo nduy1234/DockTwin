@@ -5,6 +5,7 @@
  * contradicts it. Everything here is deterministic and explainable: each
  * score carries the notes that produced it.
  */
+import { SAFETY_ASSUMPTIONS } from "./safety";
 import type { Scalar, Scenario, SignalSource, TwinSpec } from "./schema";
 
 export const SOURCE_TRUST: Record<SignalSource, { base: number; why: string }> = {
@@ -53,7 +54,7 @@ const CONTRADICTIONS: {
   {
     a: ["carrier", "declared_status"],
     b: ["scale", "weight_kg"],
-    check: (a, b) => (a === "empty" && typeof b === "number" && b > 5000 ? `declared empty but scale reads ${(b / 1000).toFixed(1)} t` : null),
+    check: (a, b) => (a === "empty" && typeof b === "number" && b > SAFETY_ASSUMPTIONS.emptyMaxKg ? `declared empty but scale reads ${(b / 1000).toFixed(1)} t` : null),
   },
   {
     a: ["carrier", "declared_weight_kg"],

@@ -9,7 +9,7 @@ import { MicButton } from "@/components/MicButton";
 import { ModelBadges } from "@/components/ModelBadges";
 import { PhotoPanel } from "@/components/PhotoPanel";
 import { StressPanel } from "@/components/StressPanel";
-import { decideAt, type Decision } from "@/engine/decide";
+import { decideAt, displayLevels, overrideOptions, type Decision } from "@/engine/decide";
 import { formatCondition, formatRule } from "@/engine/format";
 import { stateAt } from "@/engine/replay";
 import type { TwinObject, TwinSpec } from "@/engine/schema";
@@ -57,6 +57,7 @@ export default function Home() {
   }, [spec, stress, scenarioIdx, tickIdx]);
 
   function rule(d: Decision, r: Ruling, note?: string) {
+    if (r.status === "overridden" && !overrideOptions(d).includes(r.level)) return;
     setRulings((x) => ({ ...x, [rulingKey(d)]: r }));
     void audit.append({
       actor: r.status === "auto" ? "policy" : "planner",
@@ -75,6 +76,7 @@ export default function Home() {
         approvalReasons: d.approval.reasons,
         signals: d.evidence.signals.map((s) => ({ source: s.source, key: s.key, value: s.value, trust: s.trust })),
         rules: d.evidence.firings.map((f) => f.ruleId),
+        safety: d.evidence.safety,
         note,
       },
     });
@@ -97,8 +99,8 @@ export default function Home() {
     const result = stress.results[scenarioIdx];
     if (!result) return null;
     const i = Math.min(tickIdx, result.ticks.length - 1);
-    return { state: stateAt(spec, result, i), levels: result.ticks[i]?.levels ?? {} };
-  }, [spec, stress, scenarioIdx, tickIdx]);
+    return { state: stateAt(spec, result, i), levels: displayLevels(spec, result.ticks[i], decisions) };
+  }, [spec, stress, scenarioIdx, tickIdx, decisions]);
 
   async function post<T>(url: string, body: unknown): Promise<T> {
     const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -368,6 +370,7 @@ export default function Home() {
               data={stress}
               scenarioIdx={scenarioIdx}
               tickIdx={tickIdx}
+              levels={live?.levels}
               fixes={fixes}
               onScenario={(i) => {
                 setScenarioIdx(i);

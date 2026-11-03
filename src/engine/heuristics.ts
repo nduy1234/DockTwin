@@ -3,6 +3,7 @@
  * mock mode and as a clearly labeled fallback if a Muse Spark fix call fails.
  * Every heuristic fix still goes through verifyFix like a model fix.
  */
+import { policyRepair, SAFETY_POLICIES, type SafetyPolicyId } from "./safety";
 import type { Bug } from "./sim";
 import { LADDER, type Rule, type RuleDiff, type TwinSpec } from "./schema";
 
@@ -37,6 +38,27 @@ export function heuristicFix(spec: TwinSpec, bug: Bug): RuleDiff | null {
               priority: Math.max(...spec.rules.map((r) => r.priority), 0),
               when: inv.when,
               then: [{ type: "recommend", level: inv.minLevel, reason: inv.description }],
+            },
+          },
+        ],
+      };
+    }
+    case "policy_violation": {
+      const repair = policyRepair(spec, bug.policyId ?? "", bug.subject ?? "");
+      const level = SAFETY_POLICIES[bug.policyId as SafetyPolicyId]?.minLevel;
+      if (!repair || !level) return null;
+      return {
+        rationale: `The rules miss safety policy ${bug.policyId}. Add a rule that reaches ${level} so they agree with it.`,
+        ops: [
+          {
+            op: "add",
+            ruleId: null,
+            rule: {
+              id: nextId(spec),
+              name: `Guarantee: ${bug.policyId}`,
+              ...repair,
+              priority: Math.max(...spec.rules.map((r) => r.priority), 0),
+              then: [{ type: "recommend", level, reason: `Required by ${bug.policyId}` }],
             },
           },
         ],
