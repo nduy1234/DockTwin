@@ -4,7 +4,7 @@
 
 **Describe a port terminal in plain English (or show a photo), get a programmable 3D digital twin, and let an agent stress-test it against conflicting real-world signals before a disruption costs you.**
 
-Built for the Meta Global AI Developer Hackathon, track **Push the Frontier** (understanding and controlling a physical system). Every model step runs on Meta models: **Muse Spark**, **SAM 3.1**, and **Muse Voice Transcribe**.
+Built for the Meta Global AI Developer Hackathon, track **Push the Frontier** (understanding and controlling a physical system). Every model step runs on Meta models: **Muse Spark**, **SAM 3.1**, and **Muse Voice Transcribe** (plus **Muse Spark Open** on Baseten as an optional stress-scenario provider, off by default).
 
 ---
 
@@ -141,7 +141,7 @@ npm run dev                  # http://localhost:3000
 ```
 
 ```bash
-npm test          # 60 unit + golden tests (Vitest)
+npm test          # 466 tests in 13 files (Vitest)
 npm run typecheck
 npm run build
 npm run smoke     # live check of all 6 routes against a running app (real Meta calls; fails on any mock)
