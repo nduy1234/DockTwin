@@ -15,14 +15,14 @@
 **Screen:** title card → the Pacific Gate terminal in 3D (Demo mode loaded, idle).
 
 **Voice-over:**
-> "Shipping delays cost the industry an estimated $68 billion in 2025 (Otonomi, 2025 Supply Chain Disruption Market Report). At a terminal, a delay often starts small: a box where the paperwork says *empty* and the scale says *24 tons*. A reefer warming up while the carrier says it's fine. A customs hold landing just as the lane goes down. Planners juggle these conflicts by hand. DockTwin tests the plan before the disruption hits."
+> "Shipping delays cost the industry an estimated $68 billion in 2025 (Otonomi, 2025 Supply Chain Disruption Market Report). For a terminal planner at LA/Long Beach, a delay often starts small: a box where the paperwork says *empty* and the scale says *24 tons*. A reefer warming up while the carrier says it's fine. A customs hold landing just as the lane goes down. Planners juggle these conflicts by hand. DockTwin tests the plan before the disruption hits."
 
 ## 0:20 – 1:30 · Voice and photo → 3D twin → stress test → approved decision
 
 **0:20 · Speak it.** Click **🎙 Speak** and say:
 > "Reefer box M-S-C-U 7154023 at Lane 3, plug at 4 degrees, customs hold possible, free time running out."
 
-Show the transcript appear. Point at the badge: *muse-voice-transcribe-1.0*.
+Show the transcript appear. Point at the badge: *muse-voice-transcribe-1.0*. The transcript nails the spoken container code first try: transcription is biased toward terminal vocabulary (box codes, lanes, reefer terms).
 
 **0:30 · Photo.** Open **Photo → Twin** and click the *Box stack* sample. SAM 3.1 masks appear on about 33 containers in ~2 s (badge *sam-3.1*). Muse Spark vision then reads a dozen real container codes in ~30 s; start it before you speak, or cut.
 > "SAM 3.1 segments the yard; Muse Spark reads what's in each box. Those detections seed the twin."
@@ -48,6 +48,9 @@ Click **Approve & apply fix** on the gate-route conflict; the stress test re-run
 
 **Pause the replay (❚❚) first**, because explanations belong to the tick you're on. Open the evidence to show which reading and setpoint triggered the policy. Then click **Explain (Muse Spark)**, then **Approve inspect**. Show the new audit-log entry.
 
+**Technical depth (one line, ~5 s):** with `SAFETY-CUSTOMS` / `SAFETY-REEFER-TEMP` visible on the decision card, say:
+> "466 tests, a deterministic engine, and safety floors that don't depend on model output."
+
 ## 1:30 – 2:15 · Ordinary Tuesday: same engine, different world
 
 **Screen:** switch to **Ordinary Tuesday · creator mode**, choose *Automatic sliding door*, **Build twin**, **Stress-test twin**.
@@ -61,9 +64,11 @@ Replay **C1 Everything at once, then let go one by one** and scrub to *t=20* (mo
 **Screen:** README architecture diagram (Mermaid) → audit log → badges.
 > "The design rule: models plan, the engine decides. Muse Spark turns language and photos into a structured twin, invents attacks, proposes fixes, and explains decisions, always through JSON-schema-constrained output with automatic repair. SAM 3.1 turns photos into twin objects. Muse Voice Transcribe takes spoken input. A deterministic, seeded engine makes every recommendation, so seeded results are reproducible and covered by unit and golden tests. A person reviews every consequential action, and each one lands in a hash-chained audit log."
 
-> "DockTwin suggests to terminal planners which boxes to slow, reroute, inspect, or release before a disruption becomes a delay, and shows them exactly why. Built with Meta models in nine days. Thank you."
+> "DockTwin suggests to terminal planners which boxes to slow, reroute, inspect, or release before a disruption becomes a delay, and shows them exactly why. The benefit lands beyond the planner's desk: truckers spend less time idling at dead lanes, shippers get cargo that arrives unspoiled and on schedule, and port neighborhoods breathe less diesel from queues that never form. Built with Meta models in nine days. Thank you."
 
-**End card:** repo URL, "Built with Muse Spark · SAM 3.1 · Muse Voice Transcribe".
+**End card:** repo URL (github.com/nduy1234/DockTwin), live URL (docktwin.vercel.app), "Built with Muse Spark · SAM 3.1 · Muse Voice Transcribe", "Everything shown was built Oct 27 – Nov 4, 2026."
+
+**Production notes:** use the 3D replay wherever the script says replay (don't cut away to static panels); burn captions into the final export.
 
 ---
 
