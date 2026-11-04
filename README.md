@@ -175,7 +175,7 @@ Everything in this repository was written during the building period. The only e
 | Oct 29 | `b741d8f` | Demo mode (seeded 100-box terminal), animated replay, golden test, README, DEMO.md |
 | Nov 3 | `9b5482b` | First live runs against the Meta Model API: latency tuning, SAM noun phrases chosen from measurements, stress-agent expectations as engine-checked oracles, root-cause grouping of bugs, stack-tier fix |
 | Nov 3 | `a6cae1e` | Time budgets: one deadline per model call across retries and repair rounds, 60 s per attempt, every route's worst case under 240 s; cited the $68B source |
-| Nov 3 | Task 2 commit | `scripts/smoke.ts`: live smoke test of all six routes (`npm run smoke`) |
+| Nov 3 | `f5e7419` | `scripts/smoke.ts`: live smoke test of all six routes (`npm run smoke`) |
 
 Third-party code is used only as npm dependencies (Next.js, React, three.js / React Three Fiber / drei, zod, the OpenAI SDK pointed at the Meta Model API, `@meta-sam/parser`, Tailwind, Vitest). Sample photos are public domain or CC0; see [`public/samples/LICENSES.md`](public/samples/LICENSES.md).
 
