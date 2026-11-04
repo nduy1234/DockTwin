@@ -111,6 +111,7 @@ const FIX_SYSTEM = `You are DockTwin's rule-repair agent. A deterministic simula
 
 Constraints:
 - Edit only rules (ops: add, replace, remove). Never weaken safety: do not delete or loosen rules that recommend hold/inspect/human unless that rule IS the bug.
+- Never fix a bug by writing a fact an invariant reads, or a safety fact such as customs_hold, reefer, setpoint_c, or temp_c. The engine rejects it.
 - Prefer the gentlest effective action on the ladder: watch, ask, slow, reroute, inspect, hold, human.
 - When sources disagree, trust direct physical measurement over self-reported claims.
 - Keep existing rule ids when replacing; new rules take the next free id (R<n>).

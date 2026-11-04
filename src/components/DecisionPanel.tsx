@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Decision } from "@/engine/decide";
+import { overrideOptions, type Decision } from "@/engine/decide";
 import type { LadderLevel } from "@/engine/schema";
 import { LEVEL_COLOR } from "./twin/colors";
 
@@ -64,6 +64,7 @@ function DecisionCard({
 }) {
   const [open, setOpen] = useState(d.approval.required);
   const pct = Math.round(d.confidence * 100);
+  const overrides = overrideOptions(d);
   return (
     <div className="space-y-2 rounded-md bg-navy p-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -148,27 +149,31 @@ function DecisionCard({
           <button onClick={() => onRule(d, { status: "approved", level: d.level })} className="rounded-md bg-rust px-3 py-1 text-xs font-medium text-white">
             Approve {d.level}
           </button>
-          <select
-            aria-label="Override action"
-            className="rounded-md bg-navy-2 px-2 py-1 text-xs ring-1 ring-navy-3"
-            value=""
-            onChange={(e) => {
-              const level = e.target.value as LadderLevel;
-              if (!level) return;
-              const note = window.prompt(`Reason for overriding ${d.level} → ${level}?`) ?? "";
-              onRule(d, { status: "overridden", level }, note);
-            }}
-          >
-            <option value="">Override…</option>
-            {d.ladder
-              .filter((s) => s.level !== d.level && s.level !== "human")
-              .map((s) => (
-                <option key={s.level} value={s.level}>
-                  {s.level}
-                  {s.status === "insufficient" ? " (gentler than evidence supports)" : ""}
-                </option>
-              ))}
-          </select>
+          {overrides.length > 0 ? (
+            <select
+              aria-label="Override action"
+              className="rounded-md bg-navy-2 px-2 py-1 text-xs ring-1 ring-navy-3"
+              value=""
+              onChange={(e) => {
+                const level = e.target.value as LadderLevel;
+                if (!level) return;
+                const note = window.prompt(`Reason for overriding ${d.level} → ${level}?`)?.trim();
+                if (note) onRule(d, { status: "overridden", level }, note);
+              }}
+            >
+              <option value="">Override…</option>
+              {d.ladder
+                .filter((s) => overrides.includes(s.level))
+                .map((s) => (
+                  <option key={s.level} value={s.level}>
+                    {s.level}
+                    {s.status === "insufficient" ? " (gentler than evidence supports)" : ""}
+                  </option>
+                ))}
+            </select>
+          ) : (
+            <span className="self-center text-xs text-sand/60">Safety policy sets the minimum at {d.level}; a supervisor can review it.</span>
+          )}
           <button onClick={() => onRule(d, { status: "escalated", level: "human" })} className="rounded-md px-3 py-1 text-xs ring-1 ring-navy-3 hover:bg-navy-2">
             Hand to supervisor
           </button>
@@ -223,6 +228,12 @@ function Evidence({ d }: { d: Decision }) {
           </div>
         )}
       </div>
+      {d.evidence.safety.map((f) => (
+        <div key={f.policyId} className="text-warn">
+          Safety policy {f.policyId} (advisory, prototype threshold): {f.description} (≥ {f.minLevel}). Based on{" "}
+          {f.observations.map((o) => `${o.source} ${o.target}.${o.fact}=${String(o.value)}${o.t === null ? "" : ` at t=${o.t}m`}`).join("; ")}.
+        </div>
+      ))}
       <div className="text-sand/50">
         Confidence: {d.confidenceWhy.join("; ")}. Stable for {d.evidence.stableTicks} tick{d.evidence.stableTicks === 1 ? "" : "s"}; scenario
         peak {d.evidence.peak ?? "none"}.

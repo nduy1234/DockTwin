@@ -34,6 +34,25 @@ DockTwin is an agent that:
 
 The same spec, scenario, and seed always give byte-identical results, so every outcome is reproducible and unit-tested.
 
+### Port safety policy
+
+[`src/engine/safety.ts`](src/engine/safety.ts) sets decision floors that do not depend on model output. It runs for a twin with no rules or invariants, and it reads observations that rule `set` actions cannot reach.
+
+| Policy | Floor | Trigger |
+| --- | --- | --- |
+| `SAFETY-CUSTOMS` | hold | A customs signal or `customs_hold` fact says held. Only a later customs signal releases it. |
+| `SAFETY-REEFER-TEMP` | inspect | Latest measured temperature is more than 3 °C above that box's own setpoint. |
+| `SAFETY-REEFER-SETPOINT` | ask | A reefer reports a temperature but has no setpoint. |
+| `SAFETY-REEFER-POWER` | ask | The box's plug is disconnected or has lost power. |
+| `SAFETY-REEFER-TELEMETRY` | ask | A reefer that was reporting has been silent for over 60 minutes. |
+| `SAFETY-DECLARED-EMPTY` | inspect | A box declared empty weighs over 5 t. |
+
+Rules cannot write these safety facts (rules may raise `customs_hold` but never clear it), and a fix cannot write a fact an invariant reads. Each finding keeps its observations: source, time, and age.
+
+A twin labelled `creator` that contains port objects, facts, or signal sources is rejected, so the domain label cannot switch the policy off. The server keeps no twin between requests: a client can still remove or relabel objects in the spec it sends, and the policy cannot see what was removed. Treat this as a prototype boundary, not access control.
+
+These thresholds are prototype assumptions in `SAFETY_ASSUMPTIONS`, not validated operational standards. A terminal would replace them with its own procedures. DockTwin is advisory: it recommends actions and changes nothing in the physical terminal, and every active policy, plus any reroute, inspect, hold, or human action, requires human review.
+
 ---
 
 ## Architecture
@@ -139,11 +158,11 @@ npm run smoke     # live check of all 6 routes against a running app (real Meta 
 3. **Behavior bugs:**
    - Rules R4 and R5 fight over the gate route at equal priority, so a heavy box declared "empty" gets fast-laned.
    - The reefer rule trusts the carrier's "temp OK" over the sensor, which violates the safety rule *>3 °C above setpoint ⇒ inspect*.
-   Each fix arrives as a diff with **VERIFIED** (re-run across all scenarios). Approve to apply; the stress test re-runs clean.
+   Each fix arrives as a diff with **VERIFIED** (re-run across all scenarios). Approve each to apply; once both are applied, the seeded scenarios run clean.
 4. **Decisions:** pick the reefer scenario at t=40.
-   - The engine raised the action to *inspect* via the safety floor.
+   - The action is *inspect*, and the port safety policy is active.
    - The sensor (trust 0.90) overrides the carrier (0.30 after contradiction).
-   - Confidence is 0.72, with an itemized cost estimate.
+   - The evidence score is 0.72 before the reefer fix and 0.73 after it, with an itemized cost estimate.
    - The card is marked **needs human approval**.
    Approve it, override it with a reason, or hand it to a supervisor. Click **Explain (Muse Spark)**.
 5. **Voice / photo:** speak a new description, or open *Photo → Twin* and segment the *Box stack* sample. SAM 3.1 finds about 33 boxes, and Muse Spark vision reads their real container codes.

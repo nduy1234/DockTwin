@@ -6,18 +6,21 @@
  *  - Active invariants set a safety floor; the decision never goes below it.
  *  - Confidence = trust of the weakest signal the deciding rule relied on,
  *    discounted for unresolved contradictions and for a level that just changed.
- *  - Approval is required for high-impact or low-confidence actions.
+ *  - The port safety policy sets a floor no rule, invariant, or fix can lower.
+ *  - Decisions are advisory. Approval is required for high-impact or
+ *    low-confidence actions and whenever the safety policy is active.
  */
 import { costOfDelay, type CostEstimate } from "./cost";
 import { evalCondition, makeCtx, resolveSubject, subjectsOf, type SignalStore } from "./dsl";
 import { stateAt } from "./replay";
+import type { SafetyFinding } from "./safety";
 import { LADDER, type LadderLevel, type Scenario, type TwinSpec } from "./schema";
-import { levelIndex, type SimResult } from "./sim";
+import { levelIndex, type SimResult, type TickRecord } from "./sim";
 import { trustedSignals, type Conflict, type SignalView } from "./trust";
 
 export const POLICY = {
   minConfidence: 0.7,
-  highImpact: ["hold", "human"] as LadderLevel[],
+  highImpact: ["reroute", "inspect", "hold", "human"] as LadderLevel[],
   maxAutoActionUsd: 1500,
 };
 
@@ -42,6 +45,8 @@ export type Decision = {
     firings: { ruleId: string; level: LadderLevel; reason: string; inputs: string[] }[];
     signals: SignalView[];
     conflicts: Conflict[];
+    /** Active safety policies, each with the observations behind it. */
+    safety: SafetyFinding[];
     stableTicks: number;
     peak: LadderLevel | null;
   };
@@ -62,6 +67,7 @@ export function decideAt(spec: TwinSpec, scenario: Scenario, result: SimResult, 
 
   const subjects = new Set(Object.keys(tick.levels));
   for (const inv of spec.invariants) for (const s of subjectsOf(spec, inv.appliesTo)) if (evalCondition(ctx, inv.when, s)) subjects.add(s);
+  for (const s of Object.keys(tick.safety)) subjects.add(s);
 
   const out: Decision[] = [];
   for (const subject of subjects) {
@@ -73,6 +79,12 @@ export function decideAt(spec: TwinSpec, scenario: Scenario, result: SimResult, 
       if (!subjectsOf(spec, inv.appliesTo).includes(subject) || !evalCondition(ctx, inv.when, subject)) continue;
       if (!floor || levelIndex(inv.minLevel) > levelIndex(floor.level)) {
         floor = { level: inv.minLevel, invariantId: inv.id, description: inv.description };
+      }
+    }
+    const safety = tick.safety[subject] ?? [];
+    for (const f of safety) {
+      if (!floor || levelIndex(f.minLevel) > levelIndex(floor.level)) {
+        floor = { level: f.minLevel, invariantId: f.policyId, description: f.description };
       }
     }
     const level: LadderLevel = levelIndex(floor?.level) > levelIndex(ruleLevel) ? floor!.level : (ruleLevel ?? "watch");
@@ -151,6 +163,9 @@ export function decideAt(spec: TwinSpec, scenario: Scenario, result: SimResult, 
     if (conf < POLICY.minConfidence) reasons.push(`confidence ${conf.toFixed(2)} < ${POLICY.minConfidence}`);
     if (cost.actionUsd >= POLICY.maxAutoActionUsd) reasons.push(`estimated cost $${cost.actionUsd.toLocaleString("en-US")} ≥ $${POLICY.maxAutoActionUsd.toLocaleString("en-US")}`);
     if (floor && levelIndex(floor.level) > levelIndex(ruleLevel)) reasons.push(`rules under-reacted; raised to safety floor (${floor.invariantId})`);
+    for (const f of safety) reasons.push(`safety policy ${f.policyId} is active`);
+    if (result.bugs.some((b) => b.kind === "conflict" && b.subject === subject && (b.firstT ?? 0) <= tick.t)) reasons.push("rules conflict on this box");
+    if (props.gate_route === "fast_lane" && levelIndex(level) >= levelIndex("inspect")) reasons.push(`rules route this box to fast_lane while the action is ${level}`);
 
     out.push({
       subject,
@@ -166,9 +181,20 @@ export function decideAt(spec: TwinSpec, scenario: Scenario, result: SimResult, 
       confidenceWhy: why,
       cost,
       approval: { required: reasons.length > 0, reasons },
-      evidence: { scenarioId: scenario.id, firings, signals, conflicts, stableTicks: stable, peak: result.outcomes[subject]?.peak ?? null },
+      evidence: { scenarioId: scenario.id, firings, signals, conflicts, safety, stableTicks: stable, peak: result.outcomes[subject]?.peak ?? null },
     });
   }
   return out.sort((a, b) => levelIndex(b.level) - levelIndex(a.level) || a.confidence - b.confidence || a.subject.localeCompare(b.subject));
 }
 
+/** What the twin shows per object: final decision levels at a port, raw rule levels in creator mode. */
+export function displayLevels(spec: TwinSpec, tick: TickRecord | undefined, decisions: Decision[]): Record<string, LadderLevel> {
+  if (spec.domain !== "port") return tick?.levels ?? {};
+  return { ...tick?.levels, ...Object.fromEntries(decisions.map((d) => [d.subject, d.level])) };
+}
+
+/** Levels a planner may override to: never below an active safety policy. */
+export function overrideOptions(d: Decision): LadderLevel[] {
+  const min = Math.max(-1, ...d.evidence.safety.map((f) => levelIndex(f.minLevel)));
+  return LADDER.filter((l) => l !== d.level && l !== "human" && levelIndex(l) >= min);
+}

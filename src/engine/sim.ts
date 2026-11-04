@@ -6,11 +6,19 @@
  * Recommendations are recomputed every tick from the fixpoint firings.
  */
 import { fire, initialState, makeCtx, readFact, subjectsOf, evalCondition, type SignalStore, type State } from "./dsl";
+import { evaluatePortSafety, initialWorld, observeWorld, type SafetyFinding } from "./safety";
 import { LADDER, type LadderLevel, type Scalar, type Scenario, type TwinSpec } from "./schema";
 
 export const MAX_FIXPOINT_ITERATIONS = 10;
 
-export type BugKind = "conflict" | "oscillation" | "invariant_violation" | "expectation_unmet" | "dead_rule" | "unknown_fact";
+export type BugKind =
+  | "conflict"
+  | "oscillation"
+  | "invariant_violation"
+  | "policy_violation"
+  | "expectation_unmet"
+  | "dead_rule"
+  | "unknown_fact";
 
 export type Bug = {
   kind: BugKind;
@@ -19,6 +27,7 @@ export type Bug = {
   ruleIds: string[];
   subject?: string;
   invariantId?: string;
+  policyId?: string;
   firstT?: number;
   count: number;
   /** Stable identity (kind + rules + subject), used to check a fix removed it. */
@@ -33,6 +42,8 @@ export type TickRecord = {
   /** Effective (most severe) recommendation per subject this tick. */
   levels: Record<string, LadderLevel>;
   changed: { target: string; key: string; value: Scalar; by: string }[];
+  /** Active safety-policy findings per subject, independent of the rules. */
+  safety: Record<string, SafetyFinding[]>;
 };
 
 export type SubjectOutcome = {
@@ -62,6 +73,7 @@ function cloneState(s: State): State {
 
 export function runScenario(spec: TwinSpec, scenario: Scenario): SimResult {
   const state = initialState(spec);
+  const world = initialWorld(spec);
   const signals: SignalStore = {};
   const bugs = new Map<string, Bug>();
   const fired = new Set<string>();
@@ -84,6 +96,7 @@ export function runScenario(spec: TwinSpec, scenario: Scenario): SimResult {
     for (; ci < changes.length && changes[ci]!.t <= t; ci++) {
       const c = changes[ci]!;
       (state[c.target] ??= {})[c.key] = c.value;
+      observeWorld(world, c.target, c.key, c.value, c.t);
       changed.push({ target: c.target, key: c.key, value: c.value, by: "world" });
     }
     for (; si < sigs.length && sigs[si]!.t <= t; si++) {
@@ -172,11 +185,13 @@ export function runScenario(spec: TwinSpec, scenario: Scenario): SimResult {
       }
     }
 
+    const invariantShortfall: Record<string, LadderLevel> = {};
     for (const inv of spec.invariants) {
       for (const subject of subjectsOf(spec, inv.appliesTo)) {
         if (!evalCondition(ctx, inv.when, subject)) continue;
         const got = levels[subject] ?? null;
         if (levelIndex(got) < levelIndex(inv.minLevel)) {
+          invariantShortfall[subject] = maxLevel(invariantShortfall[subject] ?? null, inv.minLevel)!;
           addBug(`inv:${inv.id}:${subject}`, {
             kind: "invariant_violation",
             severity: "critical",
@@ -189,6 +204,25 @@ export function runScenario(spec: TwinSpec, scenario: Scenario): SimResult {
             firstT: t,
           });
         }
+      }
+    }
+
+    // Rules that miss a policy are a bug even with no invariant covering it.
+    const safety = evaluatePortSafety(spec, world, signals, t);
+    for (const [subject, findings] of Object.entries(safety)) {
+      for (const f of findings) {
+        const got = levels[subject] ?? null;
+        const reported = levelIndex(invariantShortfall[subject]) >= levelIndex(f.minLevel);
+        if (reported || levelIndex(got) >= levelIndex(f.minLevel) || levelIndex(f.minLevel) < LADDER.indexOf("inspect")) continue;
+        addBug(`policy:${f.policyId}:${subject}`, {
+          kind: "policy_violation",
+          severity: "critical",
+          message: `${f.policyId} not met for ${subject}: "${f.description}" — rules produced ${got ?? "no action"}, need at least ${f.minLevel}. The decision is still raised to ${f.minLevel}.`,
+          ruleIds: (reasons[subject] ?? []).map((r) => r.ruleId),
+          subject,
+          policyId: f.policyId,
+          firstT: t,
+        });
       }
     }
 
@@ -207,6 +241,7 @@ export function runScenario(spec: TwinSpec, scenario: Scenario): SimResult {
       fired: firings.map((f) => ({ ruleId: f.ruleId, subject: f.subject })),
       levels,
       changed,
+      safety,
     });
   }
 

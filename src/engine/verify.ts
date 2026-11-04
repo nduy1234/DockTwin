@@ -9,8 +9,17 @@ import { runScenario, type Bug, type SimResult } from "./sim";
 export function applyDiff(spec: TwinSpec, diff: RuleDiff): { spec: TwinSpec; errors: string[] } {
   const rules = [...spec.rules];
   const errors: string[] = [];
+  // A fix must satisfy an invariant, not rewrite the facts it reads.
+  const guarded = new Set(
+    spec.invariants.flatMap((i) => [...i.when.all, ...i.when.any]).map((p) => p.fact).filter((f) => f !== "clock.minutes" && !f.startsWith("signal.")),
+  );
+  const writes = (r: Rule | undefined) => (r?.then ?? []).flatMap((a) => (a.type === "set" ? [a.key] : []));
   for (const [i, op] of diff.ops.entries()) {
     const at = op.ruleId ? rules.findIndex((r) => r.id === op.ruleId) : -1;
+    const had = writes(rules[at]);
+    for (const key of writes(op.op === "remove" ? undefined : (op.rule ?? undefined))) {
+      if (guarded.has(key) && !had.includes(key)) errors.push(`op ${i}: may not write "${key}", which a safety invariant reads`);
+    }
     if (op.op === "add") {
       if (!op.rule) errors.push(`op ${i}: add needs a rule`);
       else if (rules.some((r) => r.id === op.rule!.id)) errors.push(`op ${i}: rule id ${op.rule.id} already exists`);
@@ -121,7 +130,7 @@ export type RankedBug = Bug & { scenarioId: string; alsoAffects: string[] };
 
 /** Same defect on different boxes = one root cause (one fix covers all). */
 export function rootCause(b: Bug): string {
-  return b.kind === "expectation_unmet" ? b.key : `${b.kind}:${b.ruleIds.join(",")}:${b.invariantId ?? ""}`;
+  return b.kind === "expectation_unmet" ? b.key : `${b.kind}:${b.ruleIds.join(",")}:${b.invariantId ?? b.policyId ?? ""}`;
 }
 
 /**
