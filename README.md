@@ -93,6 +93,8 @@ flowchart LR
 
 Endpoints and IDs follow [dev.meta.ai/docs](https://dev.meta.ai/docs/models) and the [Meta Model cookbook](https://github.com/meta-models/meta-model-cookbook). The UI shows which Meta model handled each step, with latency, retries, and schema repairs. The audit log records the model behind every action.
 
+Developed with a coding agent running on Muse Wonder (`muse-wonder-1.0`) via the Meta Model API.
+
 **Measured live (Nov 3, 2026).**
 - Describe → twin: about 19 s with `reasoning_effort: "low"`. The default took about 38 s with no quality gain for this task.
 - Demo mode, from click to every fix verified (scenario agent plus parallel fix agents): about 40 s. In that run, the engine verified every fix Muse Spark proposed.
@@ -176,6 +178,7 @@ Everything in this repository was written during the building period. The only e
 | Nov 3 | `9b5482b` | First live runs against the Meta Model API: latency tuning, SAM noun phrases chosen from measurements, stress-agent expectations as engine-checked oracles, root-cause grouping of bugs, stack-tier fix |
 | Nov 3 | `a6cae1e` | Time budgets: one deadline per model call across retries and repair rounds, 60 s per attempt, every route's worst case under 240 s; cited the $68B source |
 | Nov 3 | `f5e7419` | `scripts/smoke.ts`: live smoke test of all six routes (`npm run smoke`) |
+| Nov 3 | `b30790e` | README: fill in the `f5e7419` hash in the built-during table |
 
 Third-party code is used only as npm dependencies (Next.js, React, three.js / React Three Fiber / drei, zod, the OpenAI SDK pointed at the Meta Model API, `@meta-sam/parser`, Tailwind, Vitest). Sample photos are public domain or CC0; see [`public/samples/LICENSES.md`](public/samples/LICENSES.md).
 
