@@ -216,11 +216,6 @@ Everything in this repository was written during the building period. The only e
 
 Third-party code is used only as npm dependencies (Next.js, React, three.js / React Three Fiber / drei, zod, the OpenAI SDK pointed at the Meta Model API, `@meta-sam/parser`, Tailwind, Vitest). Sample photos are public domain or CC0; see [`public/samples/LICENSES.md`](public/samples/LICENSES.md).
 
-## Team
-
-- **Day Nguyen**: product design and growth (product, UX, demo, pitch) · [linkedin.com/in/daynguyen](https://linkedin.com/in/daynguyen)
-- **Vinayak Tiwari**: software engineer (port safety policy and hardening) · [linkedin.com/in/vinayak09](https://linkedin.com/in/vinayak09)
-
 ## License
 
 [MIT](LICENSE)
