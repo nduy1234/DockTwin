@@ -7,7 +7,10 @@ import type { Bug } from "@/engine/sim";
 import { applyDiff } from "@/engine/verify";
 import { TEMPLATES } from "@/templates";
 import { BUDGET_MS } from "./budget";
-import { sparkJSON } from "./spark";
+import { basetenEnabled, basetenJSON } from "./baseten";
+import type { ModelCall } from "./callLog";
+import { isMock } from "./client";
+import { sparkJSON, SparkError } from "./spark";
 
 const ScenarioSet = z.object({ scenarios: z.array(Scenario).min(1).max(3) });
 
@@ -22,9 +25,29 @@ Scenario format:
 - ids "A1", "A2", "A3". The description says in one sentence what conflict is being tested and which rule you expect to misbehave.
 - expectations: 1-2 per scenario. Each is a test oracle the engine will check: {subject, minLevel, byT, why} means "by minute byT, the rules must have driven subject to at least minLevel on the ladder (watch, ask, slow, reroute, inspect, hold, human)". State what a careful operator would insist on, not what the current rules happen to do. Missed expectations are reported as bugs.`;
 
-export async function sparkScenarios(spec: TwinSpec, planned: TaggedScenario[]) {
+function scenarioCheck(spec: TwinSpec) {
   const ids = new Set(spec.objects.map((o) => o.id));
-  const { data, call } = await sparkJSON({
+  return ({ scenarios }: z.infer<typeof ScenarioSet>) => {
+    const issues: string[] = [];
+    for (const s of scenarios) {
+      for (const e of [...s.signals, ...s.stateChanges]) {
+        if (!ids.has(e.target)) issues.push(`${s.id}: unknown target "${e.target}"`);
+        if (e.t > s.durationMin) issues.push(`${s.id}: event at t=${e.t} is after durationMin ${s.durationMin}`);
+      }
+      if (s.signals.length + s.stateChanges.length === 0) issues.push(`${s.id}: has no events`);
+      if (!s.expectations?.length) issues.push(`${s.id}: add 1-2 expectations`);
+      for (const e of s.expectations ?? []) {
+        if (!ids.has(e.subject)) issues.push(`${s.id}: expectation on unknown subject "${e.subject}"`);
+        if (e.byT > s.durationMin) issues.push(`${s.id}: expectation byT=${e.byT} is after durationMin ${s.durationMin}`);
+      }
+    }
+    if (new Set(scenarios.map((s) => s.id)).size !== scenarios.length) issues.push("scenario ids must be unique");
+    return issues;
+  };
+}
+
+function scenarioArgs(spec: TwinSpec, planned: TaggedScenario[]) {
+  return {
     step: "stress agent: invent scenarios",
     schemaName: "ScenarioSet",
     budgetMs: BUDGET_MS.scenarios,
@@ -36,29 +59,52 @@ ${TEMPLATES[spec.domain].agentHints}`,
       twin: { objects: spec.objects, rules: spec.rules, invariants: spec.invariants },
       alreadyPlanned: planned.map((s) => `${s.name}: ${s.description}`),
     }),
-    check: ({ scenarios }) => {
-      const issues: string[] = [];
-      for (const s of scenarios) {
-        for (const e of [...s.signals, ...s.stateChanges]) {
-          if (!ids.has(e.target)) issues.push(`${s.id}: unknown target "${e.target}"`);
-          if (e.t > s.durationMin) issues.push(`${s.id}: event at t=${e.t} is after durationMin ${s.durationMin}`);
-        }
-        if (s.signals.length + s.stateChanges.length === 0) issues.push(`${s.id}: has no events`);
-        if (!s.expectations?.length) issues.push(`${s.id}: add 1-2 expectations`);
-        for (const e of s.expectations ?? []) {
-          if (!ids.has(e.subject)) issues.push(`${s.id}: expectation on unknown subject "${e.subject}"`);
-          if (e.byT > s.durationMin) issues.push(`${s.id}: expectation byT=${e.byT} is after durationMin ${s.durationMin}`);
-        }
-      }
-      if (new Set(scenarios.map((s) => s.id)).size !== scenarios.length) issues.push("scenario ids must be unique");
-      return issues;
-    },
+    check: scenarioCheck(spec),
+  };
+}
+
+async function sparkScenarioCall(spec: TwinSpec, planned: TaggedScenario[]) {
+  const { data, call } = await sparkJSON({
+    ...scenarioArgs(spec, planned),
     // Offline mock adds nothing: the seeded generator already covers the basics.
     mock: () => ({ scenarios: [] as Scenario[] }) as z.infer<typeof ScenarioSet>,
     reasoningEffort: "low",
   });
   const scenarios: TaggedScenario[] = data.scenarios.map((s) => ({ ...s, origin: "muse-spark" }));
   return { scenarios, call };
+}
+
+async function basetenScenarioCall(spec: TwinSpec, planned: TaggedScenario[]) {
+  const { data, call } = await basetenJSON(scenarioArgs(spec, planned));
+  const scenarios: TaggedScenario[] = data.scenarios.map((s) => ({ ...s, origin: "baseten" }));
+  return { scenarios, call };
+}
+
+type ScenarioCall = (spec: TwinSpec, planned: TaggedScenario[]) => Promise<{ scenarios: TaggedScenario[]; call: ModelCall }>;
+
+/**
+ * Scenario generation. Default: Muse Spark on the Meta Model API. With
+ * SCENARIO_PROVIDER=baseten (+ BASETEN_API_KEY), Muse Spark Open on Baseten
+ * goes first and any failure falls back to Muse Spark; both calls are logged.
+ */
+export async function sparkScenarios(
+  spec: TwinSpec,
+  planned: TaggedScenario[],
+  deps: { baseten?: ScenarioCall; spark?: ScenarioCall } = {},
+) {
+  const spark = deps.spark ?? sparkScenarioCall;
+  if (basetenEnabled() && !isMock()) {
+    try {
+      const r = await (deps.baseten ?? basetenScenarioCall)(spec, planned);
+      return { scenarios: r.scenarios, call: r.call, calls: [r.call] };
+    } catch (err) {
+      const r = await spark(spec, planned);
+      const failed = err instanceof SparkError ? [err.call] : [];
+      return { scenarios: r.scenarios, call: r.call, calls: [...failed, r.call] };
+    }
+  }
+  const r = await spark(spec, planned);
+  return { scenarios: r.scenarios, call: r.call, calls: [r.call] };
 }
 
 const FIX_SYSTEM = `You are DockTwin's rule-repair agent. A deterministic simulation found a behavior bug in a digital twin's rules. Propose the smallest rule change that fixes it.

@@ -75,7 +75,7 @@ export function StressPanel({ data, scenarioIdx, tickIdx, fixes, onScenario, onT
                     <span className="shrink-0 text-xs text-ok">clean</span>
                   )}
                 </div>
-                <div className="text-[11px] text-sand/40">{s.origin === "muse-spark" ? "invented by Muse Spark" : "seeded generator"}</div>
+                <div className="text-[11px] text-sand/40">{s.origin === "muse-spark" ? "invented by Muse Spark" : s.origin === "baseten" ? "invented by Muse Spark Open (Baseten)" : "seeded generator"}</div>
               </button>
             </li>
           ))}

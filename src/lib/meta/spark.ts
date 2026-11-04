@@ -112,7 +112,7 @@ export async function sparkJSON<T>(args: {
   }
 }
 
-function validate<T>(
+export function validate<T>(
   raw: string,
   schema: z.ZodType<T>,
   check?: (v: T) => string[],

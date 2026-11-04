@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   try {
     const r = await sparkScenarios(spec, seeded);
     agent = r.scenarios;
-    calls.push(r.call);
+    calls.push(...r.calls);
   } catch (err) {
     if (err instanceof MetaConfigError) return NextResponse.json({ error: err.message, calls }, { status: 503 });
     if (!(err instanceof SparkError)) throw err;

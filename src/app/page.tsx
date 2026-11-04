@@ -122,7 +122,7 @@ export default function Home() {
       void audit.append({
         actor: "engine",
         action: "stress.run",
-        summary: `${data.scenarios.length} scenarios (seed ${data.seed}, ${data.scenarios.filter((s) => s.origin === "muse-spark").length} from Muse Spark) → ${data.bugs.length} bug(s)`,
+        summary: `${data.scenarios.length} scenarios (seed ${data.seed}, ${data.scenarios.filter((s) => s.origin === "muse-spark").length} from Muse Spark${data.scenarios.some((s) => s.origin === "baseten") ? `, ${data.scenarios.filter((s) => s.origin === "baseten").length} from Muse Spark Open (Baseten)` : ""}) → ${data.bugs.length} bug(s)`,
         data: { seed: data.seed, bugs: data.bugs.map((b) => b.key) },
       });
       // Open on the scenario with the most serious bugs, at its first bug.

@@ -15,7 +15,7 @@ import { rng } from "./rng";
 import type { Predicate, Scalar, Scenario, SignalEvent, SignalSource, StateChange, TwinSpec } from "./schema";
 import { SIGNAL_SOURCES } from "./schema";
 
-export type TaggedScenario = Scenario & { origin: "seeded" | "muse-spark" };
+export type TaggedScenario = Scenario & { origin: "seeded" | "muse-spark" | "baseten" };
 
 const DURATION = 120;
 const TICK = 10;

@@ -14,7 +14,7 @@ export const maxDuration = 300;
 
 const Body = z.object({
   spec: TwinSpec,
-  scenarios: z.array(Scenario.extend({ origin: z.enum(["seeded", "muse-spark"]) })).min(1).max(12),
+  scenarios: z.array(Scenario.extend({ origin: z.enum(["seeded", "muse-spark", "baseten"]) })).min(1).max(12),
   bugKey: z.string().min(1),
 });
 

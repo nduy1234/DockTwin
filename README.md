@@ -87,6 +87,7 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | Muse Spark | `muse-spark-1.3` | `POST /v1/chat/completions` with `response_format: json_schema` | Describe → twin spec (text, or text + photo objects) | [`api/build`](src/app/api/build/route.ts), [`lib/meta/spark.ts`](src/lib/meta/spark.ts) |
 | Muse Spark | `muse-spark-1.3` | same | Stress agent: invents adversarial scenarios plus expectations the engine checks | [`lib/meta/agents.ts`](src/lib/meta/agents.ts) `sparkScenarios` |
+| Muse Spark Open (optional, off by default) | `meta-models/muse-spark-open-1026` | Baseten `POST /v1/chat/completions` (OpenAI-compatible) | Alternate stress-agent scenario provider when `SCENARIO_PROVIDER=baseten` + `BASETEN_API_KEY`; any failure falls back to Muse Spark, both calls logged | [`lib/meta/baseten.ts`](src/lib/meta/baseten.ts) |
 | Muse Spark | `muse-spark-1.3` | same | Fix agent: proposes rule diffs | `sparkFix` |
 | Muse Spark (vision) | `muse-spark-1.3` | same, with image input | Reads container codes and reefer units inside SAM's boxes | `sparkLabelBoxes` |
 | Muse Spark | `muse-spark-1.3` | same | Explains an engine decision (cannot change it) | [`api/explain`](src/app/api/explain/route.ts) |
@@ -182,6 +183,7 @@ Everything in this repository was written during the building period. The only e
 | Nov 3 | `f5e7419` | `scripts/smoke.ts`: live smoke test of all six routes (`npm run smoke`) |
 | Nov 3 | `b30790e` | README: fill in the `f5e7419` hash in the built-during table |
 | Nov 3 | `554f648` | Honest model-usage note: coding agent on Muse Wonder (`muse-wonder-1.0`) via the Meta Model API |
+| Nov 3 | `b968021` | Deployed to Vercel (`docktwin.vercel.app`); production smoke test passes all six routes on real Meta models |
 
 Third-party code is used only as npm dependencies (Next.js, React, three.js / React Three Fiber / drei, zod, the OpenAI SDK pointed at the Meta Model API, `@meta-sam/parser`, Tailwind, Vitest). Sample photos are public domain or CC0; see [`public/samples/LICENSES.md`](public/samples/LICENSES.md).
 
