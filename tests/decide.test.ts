@@ -39,13 +39,14 @@ describe("trustedSignals", () => {
 });
 
 describe("decideAt", () => {
-  it("paper vs scale: inspect, trusting the scale, no approval needed", () => {
+  it("paper vs scale: inspect, trusting the scale, and a human reviews it", () => {
     const d = at("S1", 20);
     expect(d.level).toBe("inspect");
     expect(d.evidence.firings.find((f) => f.level === "inspect")?.inputs).toContain(`${BOX}:signal.scale.weight_kg`);
     expect(d.confidenceWhy[0]).toContain("scale.weight_kg");
     expect(d.confidence).toBeGreaterThanOrEqual(0.7);
-    expect(d.approval.required).toBe(false);
+    expect(d.approval.reasons).toContain("inspect is a high-impact action");
+    expect(d.approval.reasons).toContain("safety policy SAFETY-DECLARED-EMPTY is active");
     expect(d.ladder.filter((s) => s.status === "insufficient").map((s) => s.level)).toEqual(["watch", "ask", "slow", "reroute"]);
   });
 

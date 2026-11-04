@@ -44,6 +44,7 @@ describe("demo golden", () => {
       decisions: {
         "S1@20": decisionAt("S1", 20),
         "S2@30": decisionAt("S2", 30),
+        "S3@40": decisionAt("S3", 40), // the decision shown in DEMO.md
         "S3@60": decisionAt("S3", 60),
         "S5@30": decisionAt("S5", 30),
       },

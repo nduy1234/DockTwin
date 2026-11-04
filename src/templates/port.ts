@@ -21,6 +21,7 @@ RULES are deterministic when -> then logic interpreted by an engine (never code)
 - then: actions {type:"set",key,value} | {type:"flag",code,severity} | {type:"recommend",level,reason}.
 - Recommendation ladder, gentlest first: watch, ask, slow, reroute, inspect, hold, human. Pick the gentlest level that is effective.
 - priority: integer, higher wins on conflicting sets.
+- Never "set" customs_hold to false, or set reefer, setpoint_c, temp_c, plugged, power_ok, declared_status, declared_weight_kg, or measured_weight_kg. Those come only from observations.
 
 Write 4-8 rules a careful terminal planner would actually use for the described situation (temperature excursions, weight mismatches between carrier and scale, customs holds, lane outages, free-time running out). Write them faithfully to the description; do not try to make them perfect - a separate stress-test agent will hunt for bugs.
 
