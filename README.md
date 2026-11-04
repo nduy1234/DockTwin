@@ -207,6 +207,10 @@ Everything in this repository was written during the building period. The only e
 | Nov 3 | `d1c5f53` | README: add the `b38cf3d` row to this table |
 | Nov 3 | `1e7343d` | Vinayak Tiwari: port safety hardening — `src/engine/safety.ts` safety-policy decision floors wired into sim/verify/decide, plus safety, safety-regression, and integration-hardening tests |
 | Nov 3 | `e08eabe` | Merge of PR #2 (vinayak/safety-integration): port safety policy integrated onto latest main |
+| Nov 3 | `3b8f71b` | README: complete this table (`d1c5f53`, `1e7343d`, `e08eabe` rows) |
+| Nov 3 | `b1c69df` | README: add Team section |
+| Nov 3 | `f890a25` | README: refresh test count (466 tests in 13 files), note optional Muse Spark Open provider |
+| Nov 3 | `8579b0b` | DEMO.md: align the 3-minute script with the judging rubric (impact, Meta tooling, technical depth, end card) |
 
 Third-party code is used only as npm dependencies (Next.js, React, three.js / React Three Fiber / drei, zod, the OpenAI SDK pointed at the Meta Model API, `@meta-sam/parser`, Tailwind, Vitest). Sample photos are public domain or CC0; see [`public/samples/LICENSES.md`](public/samples/LICENSES.md).
 
