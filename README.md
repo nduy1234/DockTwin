@@ -184,6 +184,7 @@ Everything in this repository was written during the building period. The only e
 | Nov 3 | `b30790e` | README: fill in the `f5e7419` hash in the built-during table |
 | Nov 3 | `554f648` | Honest model-usage note: coding agent on Muse Wonder (`muse-wonder-1.0`) via the Meta Model API |
 | Nov 3 | `b968021` | Deployed to Vercel (`docktwin.vercel.app`); production smoke test passes all six routes on real Meta models |
+| Nov 3 | `b38cf3d` | Optional Muse Spark Open on Baseten as stress-agent scenario provider (env-flagged, default off, Muse Spark fallback) |
 
 Third-party code is used only as npm dependencies (Next.js, React, three.js / React Three Fiber / drei, zod, the OpenAI SDK pointed at the Meta Model API, `@meta-sam/parser`, Tailwind, Vitest). Sample photos are public domain or CC0; see [`public/samples/LICENSES.md`](public/samples/LICENSES.md).
 
