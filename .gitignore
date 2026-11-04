@@ -159,3 +159,6 @@ next-env.d.ts
 .env
 .env*.local
 !.env.example
+
+.vercel
+.env*

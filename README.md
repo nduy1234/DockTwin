@@ -1,5 +1,7 @@
 # DockTwin
 
+**Live demo:** https://docktwin.vercel.app
+
 **Describe a port terminal in plain English (or show a photo), get a programmable 3D digital twin, and let an agent stress-test it against conflicting real-world signals before a disruption costs you.**
 
 Built for the Meta Global AI Developer Hackathon, track **Push the Frontier** (understanding and controlling a physical system). Every model step runs on Meta models: **Muse Spark**, **SAM 3.1**, and **Muse Voice Transcribe**.
@@ -179,6 +181,7 @@ Everything in this repository was written during the building period. The only e
 | Nov 3 | `a6cae1e` | Time budgets: one deadline per model call across retries and repair rounds, 60 s per attempt, every route's worst case under 240 s; cited the $68B source |
 | Nov 3 | `f5e7419` | `scripts/smoke.ts`: live smoke test of all six routes (`npm run smoke`) |
 | Nov 3 | `b30790e` | README: fill in the `f5e7419` hash in the built-during table |
+| Nov 3 | `554f648` | Honest model-usage note: coding agent on Muse Wonder (`muse-wonder-1.0`) via the Meta Model API |
 
 Third-party code is used only as npm dependencies (Next.js, React, three.js / React Three Fiber / drei, zod, the OpenAI SDK pointed at the Meta Model API, `@meta-sam/parser`, Tailwind, Vitest). Sample photos are public domain or CC0; see [`public/samples/LICENSES.md`](public/samples/LICENSES.md).
 
