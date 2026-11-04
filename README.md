@@ -204,6 +204,9 @@ Everything in this repository was written during the building period. The only e
 | Nov 3 | `554f648` | Honest model-usage note: coding agent on Muse Wonder (`muse-wonder-1.0`) via the Meta Model API |
 | Nov 3 | `b968021` | Deployed to Vercel (`docktwin.vercel.app`); production smoke test passes all six routes on real Meta models |
 | Nov 3 | `b38cf3d` | Optional Muse Spark Open on Baseten as stress-agent scenario provider (env-flagged, default off, Muse Spark fallback) |
+| Nov 3 | `d1c5f53` | README: add the `b38cf3d` row to this table |
+| Nov 3 | `1e7343d` | Vinayak Tiwari: port safety hardening — `src/engine/safety.ts` safety-policy decision floors wired into sim/verify/decide, plus safety, safety-regression, and integration-hardening tests |
+| Nov 3 | `e08eabe` | Merge of PR #2 (vinayak/safety-integration): port safety policy integrated onto latest main |
 
 Third-party code is used only as npm dependencies (Next.js, React, three.js / React Three Fiber / drei, zod, the OpenAI SDK pointed at the Meta Model API, `@meta-sam/parser`, Tailwind, Vitest). Sample photos are public domain or CC0; see [`public/samples/LICENSES.md`](public/samples/LICENSES.md).
 
